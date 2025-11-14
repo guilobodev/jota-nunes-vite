@@ -172,9 +172,9 @@ export default function Home() {
                   {projeto.project_name}
                 </h3>
                 <p className="text-gray-600 mt-2 text-sm sm:text-base">
-                  Obs:
+                  Obs:{" "}
                   {projeto.observations
-                    ?.map((obs) => ` ${obs.description}`)
+                    ?.map((obs) => obs.description)
                     .join(", ") || "Nenhuma"}
                 </p>
                 {projeto.description && (
