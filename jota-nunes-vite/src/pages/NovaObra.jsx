@@ -7,8 +7,12 @@ export default function NovaObra() {
   const navigate = useNavigate();
   const [referentials, setReferentials] = useState([]);
   const [observations, setObservations] = useState([]);
-  const [search, setSearch] = useState("");
+  const [elements, setElements] = useState([]);
+
+  const [searchReferentials, setSearchReferentials] = useState("");
+  const [searchElements, setSearchElements] = useState("");
   const [selectedReferentials, setSelectedReferentials] = useState([]);
+  const [selectedElements, setSelectedElements] = useState([]);
   const [selectedObservations, setSelectedObservations] = useState([]);
 
   // ▸ states locais da obra
@@ -19,11 +23,17 @@ export default function NovaObra() {
 
   // === Modal state & helpers ===
   const [modalOpen, setModalOpen] = useState(false);
+  const [elementsModalOpen, setElementsModalOpen] = useState(false);
   const [observationsModalOpen, setObservationsModalOpen] = useState(false);
   const [availableAreas, setAvailableAreas] = useState([]);
+  const [availableMaterials, setAvailableMaterials] = useState([]);
   const [newRefName, setNewRefName] = useState("");
+  const [newElementTypeName, setnewElementTypeName] = useState("");
   const [newObservationDesc, setNewObservationDesc] = useState("");
   const [selectedAreasForModal, setSelectedAreasForModal] = useState([]);
+  const [selectedMaterialsForModal, setSelectedMaterialsForModal] = useState(
+    []
+  );
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState("");
 
@@ -32,6 +42,20 @@ export default function NovaObra() {
     const updated = { ...current, ...data };
     localStorage.setItem("novaObra", JSON.stringify(updated));
   }
+
+  useEffect(() => {
+    async function fetchElements() {
+      try {
+        const response = await api.get("/elements/");
+        const elementsList = response.data.data;
+        console.log(elementsList);
+        setElements(elementsList);
+      } catch (error) {
+        console.log("Erro ao buscar os elementos: ", error);
+      }
+    }
+    fetchElements();
+  }, []);
 
   useEffect(() => {
     async function fetchReferentials() {
@@ -77,6 +101,17 @@ export default function NovaObra() {
         } catch (e) {
           console.warn("Erro ao buscar áreas para modal:", e);
         }
+        try {
+          const materialsRes = await api.get("/materials/");
+          const materialsPayload =
+            materialsRes?.data?.data ?? materialsRes?.data ?? [];
+          const materialsArr = Array.isArray(materialsPayload)
+            ? materialsPayload
+            : [];
+          setAvailableMaterials(materialsArr);
+        } catch (e) {
+          console.warn("Erro ao buscar materiais para modal:", e);
+        }
       } catch (err) {
         console.error("Erro loadAux:", err);
       }
@@ -85,13 +120,42 @@ export default function NovaObra() {
     loadAux();
   }, []);
 
-  const filtered = referentials.filter(
+  const filteredReferentials = referentials.filter(
     (r) =>
       r &&
       r.referential_name &&
       r.referential_name.name &&
-      r.referential_name.name.toLowerCase().includes(search.toLowerCase())
+      r.referential_name.name
+        .toLowerCase()
+        .includes(searchReferentials.toLowerCase())
   );
+
+  // Filtrar elementos por busca e remover duplicatas baseado no element_type.id
+  const filteredElements = elements
+    .filter(
+      (element) =>
+        element &&
+        element.element_type &&
+        element.element_type.name &&
+        element.element_type.name
+          .toLowerCase()
+          .includes(searchElements.toLocaleLowerCase())
+    )
+    .reduce((unique, element) => {
+      const elementTypeId = element.element_type.id;
+      // Verificar se já existe um elemento com este element_type.id
+      const exists = unique.find((el) => el.element_type.id === elementTypeId);
+      if (!exists) {
+        unique.push(element);
+      }
+      return unique;
+    }, []);
+
+  function toggleElementSelect(id) {
+    setSelectedElements((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
 
   function toggleSelect(id) {
     setSelectedReferentials((prev) =>
@@ -106,16 +170,124 @@ export default function NovaObra() {
   }
 
   function handleNext() {
+    if (!projectName || !location || !description) {
+      alert("Informe todos os dados gerais da obra.");
+      setModalError("Informe todos os campos obrigatórios.");
+      return;
+    }
+
+    if (selectedReferentials.length === 0) {
+      alert("Selecione pelo menos um referencial.");
+      setModalError("Selecione pelo menos um referencial.");
+      return;
+    }
+
+    if (selectedElements.length === 0) {
+      alert("Selecione pelo menos um elemento.");
+      setModalError("Selecione pelo menos um elemento.");
+      return;
+    }
+
     updateNovaObra({
       project_name: projectName,
-      location,
-      description,
+      location: location,
+      description: description,
       aprovation_observations: aprovationObservations,
       referentials: selectedReferentials,
+      elements: selectedElements,
       observations_ids: selectedObservations,
     });
 
     navigate("/areas");
+  }
+
+  // create element: criar ElementTypeName via /elements/types/ (espera um array) e depois criar /elements/
+  async function createElement() {
+    setModalError("");
+
+    if (!newElementTypeName || !newElementTypeName.trim()) {
+      setModalError("Informe o nome do elemento");
+      return;
+    }
+
+    setModalLoading(true);
+
+    const extractMessage = (err) => {
+      const resp = err?.response;
+      if (!resp) return err?.message || "Erro desconhecido";
+      const data = resp.data;
+      if (!data) return `Erro ${resp.status || ""}`;
+      if (typeof data === "string") {
+        return resp.status === 404
+          ? "Endpoint não encontrado (404). Verifique a API."
+          : `Erro ${resp.status}`;
+      }
+      if (data?.detail) return data.detail;
+      if (data?.message) return data.message;
+      try {
+        return Object.entries(data)
+          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+          .join(" • ");
+      } catch {
+        return JSON.stringify(data);
+      }
+    };
+
+    try {
+      // 1) criar ElementType (enviar como array, many=True)
+      const etRes = await api.post("/elements/types/", [
+        { name: newElementTypeName.trim() },
+      ]);
+
+      const etPayload = etRes?.data?.data ?? etRes?.data ?? etRes;
+      let elementTypeId =
+        (Array.isArray(etPayload) ? etPayload[0]?.id : etPayload?.id) ?? null;
+
+      if (!elementTypeId && typeof etPayload === "object") {
+        elementTypeId = etPayload?.id ?? etPayload?.pk ?? null;
+      }
+      if (!elementTypeId) {
+        throw new Error(
+          "Não foi possível obter element_type_id a partir da resposta."
+        );
+      }
+
+      // 2) criar Element (enviar como array, many=True)
+      const payload = [
+        {
+          element_type_id: elementTypeId,
+          material_ids: Array.isArray(selectedMaterialsForModal)
+            ? selectedMaterialsForModal
+            : [],
+        },
+      ];
+
+      await api.post("/elements/", payload);
+      console.log("Elemento criado:", {
+        elementTypeId,
+        elementTypeName: newElementTypeName.trim(),
+      });
+
+      // 3) atualizar lista local
+      try {
+        const listRes = await api.get("/elements/");
+        const list = listRes?.data?.data ?? listRes?.data ?? [];
+        setElements(list);
+      } catch (err) {
+        console.warn("Erro ao recarregar elementos:", err);
+      }
+
+      // fechar modal e resetar
+      setElementsModalOpen(false);
+      setnewElementTypeName("");
+      setSelectedMaterialsForModal([]);
+      setModalError("");
+    } catch (err) {
+      console.error("Erro ao criar elemento:", err);
+      setModalError(extractMessage(err));
+    } finally {
+      setModalLoading(false);
+    }
   }
 
   // create referential: criar ReferentialName via /referentials/name/ (espera um objeto) e depois criar /referentials/
@@ -217,15 +389,20 @@ export default function NovaObra() {
     const extractMessage = (err) => {
       const resp = err?.response;
       if (!resp) return err?.message || "Erro desconhecido";
+
       const data = resp.data;
+
       if (!data) return `Erro ${resp.status || ""}`;
+
       if (typeof data === "string") {
         return resp.status === 404
           ? "Endpoint não encontrado (404). Verifique a API."
           : `Erro ${resp.status}`;
       }
+
       if (data?.detail) return data.detail;
       if (data?.message) return data.message;
+
       try {
         return Object.entries(data)
           .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
@@ -239,6 +416,7 @@ export default function NovaObra() {
       const res = await api.post("/observations/", {
         description: newObservationDesc.trim(),
       });
+
       console.log("Observation criada:", res.data);
 
       // recarregar lista local
@@ -307,7 +485,7 @@ export default function NovaObra() {
         {/* REFERENCIAIS */}
         <section className="bg-white p-6 rounded-2xl shadow-md flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-bold text-xl">Referenciais</h2>
+            <h2 className="font-bold text-xl">Nome do referencial</h2>
 
             <button
               onClick={() => setModalOpen(true)}
@@ -321,14 +499,14 @@ export default function NovaObra() {
           <input
             type="text"
             placeholder="Buscar referencial..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchReferentials}
+            onChange={(e) => setSearchReferentials(e.target.value)}
             className="p-3 rounded-xl border border-gray-300 focus:border-red-600 focus:outline-none"
           />
 
-          {filtered.length > 0 ? (
+          {filteredReferentials.length > 0 ? (
             <div className="grid md:grid-cols-2 gap-4 mt-4">
-              {filtered.map((ref) => (
+              {filteredReferentials.map((ref) => (
                 <div
                   key={ref.id}
                   onClick={() => toggleSelect(ref.id)}
@@ -350,6 +528,51 @@ export default function NovaObra() {
             </div>
           ) : (
             <p className="text-gray-500 mt-4">Nenhum referencial encontrado.</p>
+          )}
+        </section>
+
+        {/* Elements */}
+        <section className="bg-white p-6 rounded-2xl shadow-md flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-bold text-xl">Nome do elemento</h2>
+
+            <button
+              onClick={() => setElementsModalOpen(true)}
+              className="flex items-center justify-center gap-2 bg-green-600 text-white px-5 py-3 rounded-2xl shadow-md hover:bg-green-700 transition"
+            >
+              <Plus className="w-5 h-5" />
+              Novo
+            </button>
+          </div>
+
+          <input
+            type="text"
+            placeholder="Buscar elemento..."
+            value={searchElements}
+            onChange={(e) => setSearchElements(e.target.value)}
+            className="p-3 rounded-xl border border-gray-300 focus:border-red-600 focus:outline-none"
+          />
+
+          {filteredElements.length > 0 ? (
+            <div className="grid md:grid-cols-2 gap-4 mt-4">
+              {filteredElements.map((element) => (
+                <div
+                  key={element.element_type.id}
+                  onClick={() => toggleElementSelect(element.element_type.id)}
+                  className={`cursor-pointer bg-white p-5 rounded-2xl border shadow transition flex flex-col gap-2 ${
+                    selectedElements.includes(element.element_type.id)
+                      ? "border-red-600 ring-2 ring-red-400"
+                      : "border-gray-200"
+                  }`}
+                >
+                  <p className="text-lg font-semibold text-gray-900">
+                    {element?.element_type.name ?? "Sem nome do elemento"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 mt-4">Nenhum elemento encontrado.</p>
           )}
         </section>
 
@@ -478,6 +701,105 @@ export default function NovaObra() {
                     className="px-4 py-2 rounded-xl bg-red-600 text-white"
                   >
                     {modalLoading ? "Criando..." : "Criar Referencial"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Criar Elemento */}
+        {elementsModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white rounded-xl w-full max-w-2xl p-6 shadow-lg">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Criar Elemento</h3>
+                <button
+                  onClick={() => {
+                    setElementsModalOpen(false);
+                    setModalError("");
+                  }}
+                  className="text-gray-500"
+                >
+                  Fechar
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <label className="text-sm font-medium">
+                  Nome do tipo de elemento
+                </label>
+                <input
+                  type="text"
+                  placeholder="Digite o nome do novo tipo de elemento"
+                  value={newElementTypeName}
+                  onChange={(e) => setnewElementTypeName(e.target.value)}
+                  className="p-3 border rounded-xl"
+                />
+
+                <label className="text-sm font-medium">
+                  Associar materiais (opcional)
+                </label>
+                <div className="grid md:grid-cols-2 gap-2 max-h-40 overflow-auto p-2 border rounded">
+                  {availableMaterials.map((material) => {
+                    const sel = selectedMaterialsForModal.includes(material.id);
+                    return (
+                      <button
+                        key={material.id}
+                        type="button"
+                        onClick={() =>
+                          setSelectedMaterialsForModal((prev) =>
+                            prev.includes(material.id)
+                              ? prev.filter((x) => x !== material.id)
+                              : [...prev, material.id]
+                          )
+                        }
+                        className={`text-left p-2 rounded ${
+                          sel
+                            ? "bg-red-100 border border-red-300"
+                            : "hover:bg-gray-100"
+                        }`}
+                      >
+                        <div className="text-sm font-medium">
+                          {material?.description ??
+                            material?.name ??
+                            `Material ${material.id}`}
+                        </div>
+                        {material?.brand_name && (
+                          <div className="text-xs text-gray-500">
+                            Marca: {material.brand_name}
+                          </div>
+                        )}
+                        <div className="text-xs text-gray-500">
+                          ID {material.id}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {modalError && (
+                  <div className="text-sm text-red-600">{modalError}</div>
+                )}
+
+                <div className="flex justify-end gap-3 mt-3">
+                  <button
+                    onClick={() => {
+                      setElementsModalOpen(false);
+                      setnewElementTypeName("");
+                      setSelectedMaterialsForModal([]);
+                      setModalError("");
+                    }}
+                    className="px-4 py-2 rounded-xl bg-gray-200"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={createElement}
+                    disabled={modalLoading}
+                    className="px-4 py-2 rounded-xl bg-red-600 text-white"
+                  >
+                    {modalLoading ? "Criando..." : "Criar Elemento"}
                   </button>
                 </div>
               </div>
