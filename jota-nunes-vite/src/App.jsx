@@ -16,7 +16,7 @@ export default function App() {
         <Route path="/modeloPadrao" element={<ModeloPadrao />} />
         <Route path="/areas" element={<SelecionarAreas />} />
         <Route path="/criacao" element={<NovaObra />} />
-        <Route path="/ElementosMaterials" element={<ElementsMaterialsPage />} />
+        <Route path="/elementos" element={<ElementsMaterialsPage />} />
         <Route path="/materiais" element={<Materials />} />
       </Routes>
     </BrowserRouter>
