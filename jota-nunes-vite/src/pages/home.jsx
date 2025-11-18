@@ -31,10 +31,16 @@ export default function Home() {
     const fetchData = async () => {
       try {
         const data = await getConstructions();
+
+        const savedStatus = JSON.parse(
+          localStorage.getItem("status_map") || "{}"
+        );
+
         const mapped = data.map((c) => ({
           ...c,
-          status: c.is_active ? "pendente" : "reprovado",
+          status: savedStatus[c.id] || (c.is_active ? "pendente" : "reprovado"),
         }));
+
         setProjetos(mapped);
       } catch (error) {
         console.error("Erro ao buscar construções:", error);
@@ -47,6 +53,10 @@ export default function Home() {
     setProjetos((prev) =>
       prev.map((proj) => (proj.id === id ? { ...proj, status } : proj))
     );
+
+    const saved = JSON.parse(localStorage.getItem("status_map") || "{}");
+    saved[id] = status;
+    localStorage.setItem("status_map", JSON.stringify(saved));
   };
 
   const handleAbrirObservacao = (projeto) => {
@@ -82,7 +92,7 @@ export default function Home() {
     localStorage.removeItem("refresh_token");
     localStorage.removeItem("user_role");
 
-    setTimeout(() => navigate("/"), 1200);
+    setTimeout(() => navigate("/"));
   };
 
   return (
@@ -228,7 +238,6 @@ export default function Home() {
   );
 }
 
-
 function ResumoCard({ titulo, valor, cor }) {
   const cores = {
     red: "text-red-600 border-red-600",
@@ -267,9 +276,8 @@ function ListaPendentes({
 
           <p className="text-gray-600 mt-2 text-sm sm:text-base">
             Obs:{" "}
-            {projeto.observations
-              ?.map((obs) => obs.description)
-              .join(", ") || "Nenhuma"}
+            {projeto.observations?.map((obs) => obs.description).join(", ") ||
+              "Nenhuma"}
           </p>
 
           {projeto.description && (
@@ -320,7 +328,7 @@ function SecaoProjetos({ titulo, cor, lista }) {
     red: "text-red-700",
   };
 
-  const [menuAberto, setMenuAberto] = useState(null); 
+  const [menuAberto, setMenuAberto] = useState(null);
 
   const toggleMenu = (id) => {
     setMenuAberto((prev) => (prev === id ? null : id));
@@ -349,7 +357,6 @@ function SecaoProjetos({ titulo, cor, lista }) {
             key={projeto.id}
             className={`relative bg-white rounded-xl shadow-md p-6 border ${borda[cor]} hover:shadow-lg transition`}
           >
-
             <div className="flex justify-between items-start">
               <h3 className="text-lg sm:text-xl font-semibold text-gray-800">
                 {projeto.project_name}
@@ -402,9 +409,7 @@ function SecaoProjetos({ titulo, cor, lista }) {
 
             {projeto.observations?.length > 0 && (
               <p className="mt-2 text-gray-700 italic text-sm border-t pt-2">
-                “{projeto.observations
-                .map((o) => o.description)
-                .join(", ")}”
+                “{projeto.observations.map((o) => o.description).join(", ")}”
               </p>
             )}
           </div>
@@ -413,6 +418,3 @@ function SecaoProjetos({ titulo, cor, lista }) {
     </>
   );
 }
-
-
-
