@@ -33,6 +33,10 @@ export default function SelecionarElementos() {
     localStorage.setItem("novaObra", JSON.stringify(updated));
   }
 
+  const todasAreasPreenchidas = Object.values(elementsByArea).every(
+    (arr) => Array.isArray(arr) && arr.length > 0
+  );
+
   function referentialIdFrom(r) {
     if (!r) return null;
     if (typeof r === "number") return r;
@@ -41,7 +45,6 @@ export default function SelecionarElementos() {
   }
 
   //
-  // 🔄 Carregar dados
   //
   useEffect(() => {
     async function load() {
@@ -60,7 +63,6 @@ export default function SelecionarElementos() {
         const savedElementsMap = stored.elements_by_area || {};
         setElementsByArea(savedElementsMap);
 
-        // pegar nomes dos referenciais
         let refsMeta = [];
         if (referentialIds.length > 0) {
           try {
@@ -95,6 +97,7 @@ export default function SelecionarElementos() {
 
         // Carregar TODOS os elementos
         const elemRes = await api.get("/elements/");
+
         const elemPayload = elemRes?.data?.data ?? elemRes?.data ?? [];
         const elemsArr = Array.isArray(elemPayload) ? elemPayload : [];
         setAllElements(elemsArr);
@@ -417,16 +420,17 @@ export default function SelecionarElementos() {
               >
                 Voltar
               </button>
-
-              <button
-                onClick={handleNext}
-                disabled={Object.values(elementsByArea).every(
-                  (arr) => !arr || arr.length === 0
-                )}
-                className="bg-red-600 disabled:bg-gray-400 text-white px-6 py-3 rounded-xl font-semibold hover:bg-red-700"
-              >
-                Próximo
-              </button>
+              <div className="flex justify-end mt-6">
+                <button
+                  onClick={handleNext}
+                  disabled={Object.values(elementsByArea).some(
+                    (arr) => !arr || arr.length === 0
+                  )}
+                  className="bg-red-600 disabled:bg-gray-400 text-white px-6 py-3 rounded-xl font-semibold hover:bg-red-700"
+                >
+                  Próximo
+                </button>
+              </div>
             </div>
           </>
         )}
@@ -478,32 +482,6 @@ export default function SelecionarElementos() {
                 onChange={(e) => setNewTypeName(e.target.value)}
                 className="p-3 border rounded-xl"
               />
-
-              <label className="text-sm font-medium">
-                Associar materiais (opcional)
-              </label>
-              <div className="grid md:grid-cols-2 gap-2 max-h-40 overflow-auto p-2 border rounded">
-                {allMaterials.map((m) => {
-                  const sel = selectedMaterialsForModal.includes(m.id);
-                  return (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => toggleModalMaterial(m.id)}
-                      className={`text-left p-2 rounded ${
-                        sel
-                          ? "bg-red-100 border border-red-300"
-                          : "hover:bg-gray-100"
-                      }`}
-                    >
-                      <div className="text-sm font-medium">
-                        {m.name || `Material ${m.id}`}
-                      </div>
-                      <div className="text-xs text-gray-500">ID {m.id}</div>
-                    </button>
-                  );
-                })}
-              </div>
 
               {modalError && (
                 <div className="text-sm text-red-600">{modalError}</div>

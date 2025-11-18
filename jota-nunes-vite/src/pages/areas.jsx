@@ -162,7 +162,7 @@ export default function SelecionarAreas() {
   function handleNext() {
     // salvar mapping no localStorage.novaObra e avançar
     updateNovaObra({ areas_by_referential: areasByReferential });
-    navigate("/ElementosMaterials");
+    navigate("/elementos");
   }
 
   function areaTitle(a) {
@@ -214,9 +214,9 @@ export default function SelecionarAreas() {
 
     try {
       // 1) criar AreaName (objeto, não lista)
-      const anRes = await api.post("/areas/names/", {
-        name: newAreaName.trim(),
-      });
+      const anRes = await api.post("/areas/names/", [
+        { name: newAreaName.trim() },
+      ]);
       const anPayload = anRes?.data?.data ?? anRes?.data ?? anRes;
       let areaNameId =
         (Array.isArray(anPayload) ? anPayload[0]?.id : anPayload?.id) ?? null;
@@ -228,13 +228,14 @@ export default function SelecionarAreas() {
           "Não foi possível obter area_name_id a partir da resposta."
         );
 
-      // 2) criar Area (objeto, não lista)
-      const payload = {
-        area_name_id: areaNameId,
-        elements_ids: Array.isArray(selectedElementsForModal)
-          ? selectedElementsForModal
-          : [],
-      };
+      const payload = [
+        {
+          area_name_id: areaNameId,
+          elements_ids: Array.isArray(selectedElementsForModal)
+            ? selectedElementsForModal
+            : [],
+        },
+      ];
 
       await api.post("/areas/", payload);
       console.log("Área criada com sucesso");
@@ -320,9 +321,6 @@ export default function SelecionarAreas() {
                 >
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold text-lg">{title}</h3>
-                    <span className="text-sm text-gray-500">
-                      {selectedForRef.length} selecionada(s)
-                    </span>
                   </div>
 
                   {allAreas.length === 0 ? (
@@ -356,9 +354,7 @@ export default function SelecionarAreas() {
                                   ID {a.id}
                                 </span>
                               </div>
-                              <p className="text-sm text-gray-600">
-                                Elementos: {elementsCount}
-                              </p>
+
                               {a.description && (
                                 <p className="text-xs text-gray-500 italic">
                                   {a.description}
@@ -421,34 +417,6 @@ export default function SelecionarAreas() {
                 onChange={(e) => setNewAreaName(e.target.value)}
                 className="p-3 border rounded-xl"
               />
-
-              <label className="text-sm font-medium">
-                Associar elementos (opcional)
-              </label>
-              <div className="grid md:grid-cols-2 gap-2 max-h-40 overflow-auto p-2 border rounded">
-                {allElements.map((el) => {
-                  const sel = selectedElementsForModal.includes(el.id);
-                  return (
-                    <button
-                      key={el.id}
-                      type="button"
-                      onClick={() => toggleModalElement(el.id)}
-                      className={`text-left p-2 rounded ${
-                        sel
-                          ? "bg-red-100 border border-red-300"
-                          : "hover:bg-gray-100"
-                      }`}
-                    >
-                      <div className="text-sm font-medium">
-                        {el?.element_type?.name ??
-                          el?.name ??
-                          `Elemento ${el.id}`}
-                      </div>
-                      <div className="text-xs text-gray-500">ID {el.id}</div>
-                    </button>
-                  );
-                })}
-              </div>
 
               {modalError && (
                 <div className="text-sm text-red-600">{modalError}</div>

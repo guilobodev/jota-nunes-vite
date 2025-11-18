@@ -13,11 +13,20 @@ export default function Materials() {
   const [areasByReferential, setAreasByReferential] = useState({});
   const [elementsByArea, setElementsByArea] = useState({});
   const [materialsByElement, setMaterialsByElement] = useState({});
+  const [brandModalOpen, setBrandModalOpen] = useState(false);
+  const [newBrandName, setNewBrandName] = useState("");
+  const [brandLoading, setBrandLoading] = useState(false);
+  const [brandError, setBrandError] = useState("");
+
+  // Modal de Tipo de Material
+  const [typeModalOpen, setTypeModalOpen] = useState(false);
+  const [newTypeName, setNewTypeName] = useState("");
+  const [typeLoading, setTypeLoading] = useState(false);
+  const [typeError, setTypeError] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  // Modal states
   const [materialModalOpen, setMaterialModalOpen] = useState(false);
   const [newMaterialDesc, setNewMaterialDesc] = useState("");
   const [newMaterialBrandId, setNewMaterialBrandId] = useState("");
@@ -54,7 +63,7 @@ export default function Materials() {
         project_name: stored.project_name,
         location: stored.location,
         description: stored.description,
-        // referentials: referentialIds,
+        referentials: referentialIds,
       };
 
       await api.post("/constructions/", payload);
@@ -87,7 +96,6 @@ export default function Materials() {
         const savedMaterialsMap = stored.materials_by_element || {};
         setMaterialsByElement(savedMaterialsMap);
 
-        // pegar nomes dos referenciais
         let refsMeta = [];
         if (referentialIds.length > 0) {
           try {
@@ -152,6 +160,18 @@ export default function Materials() {
       } finally {
         setLoading(false);
       }
+      try {
+        const elementsRes = await api.get("/elements/");
+        const elementsPayload =
+          elementsRes?.data?.data ?? elementsRes?.data ?? [];
+        const elementsArr = Array.isArray(elementsPayload)
+          ? elementsPayload
+          : [];
+
+        localStorage.setItem("allElementsCache", JSON.stringify(elementsArr));
+      } catch (err) {
+        console.warn("Erro ao buscar elementos:", err);
+      }
     }
 
     load();
@@ -172,9 +192,13 @@ export default function Materials() {
     updateNovaObra({ materials_by_element: materialsByElement });
     navigate("/home");
   }
-
   function elementName(e) {
-    return e?.element_type?.name || "Elemento";
+    if (!e) return "Elemento";
+
+    // tentar várias possibilidades
+    return (
+      e.name || e.element_type?.name || e.element_type?.type_name || "Elemento"
+    );
   }
 
   function areaName(a) {
@@ -227,13 +251,14 @@ export default function Materials() {
     setModalLoading(true);
 
     try {
-      await api.post("/materials/", {
-        description: newMaterialDesc.trim(),
-        brand: parseInt(newMaterialBrandId),
-        material_type: parseInt(newMaterialTypeId),
-      });
+      await api.post("/materials/", [
+        {
+          description: newMaterialDesc.trim(),
+          brand: parseInt(newMaterialBrandId),
+          material_type: parseInt(newMaterialTypeId),
+        },
+      ]);
 
-      // Recarregar materiais
       try {
         const matsRes = await api.get("/materials/");
         const matsPayload = matsRes?.data?.data ?? matsRes?.data ?? [];
@@ -353,9 +378,21 @@ export default function Materials() {
                                 (e) => e.id === elementId
                               );
                               const elemName = elementName(elemData);
+
                               const elemKey = `${refId}-${areaId}-${elementId}`;
                               const selectedMats =
                                 materialsByElement[elemKey] || [];
+
+                              console.log("Elemento:", elemData);
+                              console.log(
+                                "allElementsCache:",
+                                allElementsCache
+                              );
+                              console.log("elementId:", elementId);
+                              console.log(
+                                "Encontrado:",
+                                allElementsCache.find((e) => e.id == elementId)
+                              );
 
                               return (
                                 <div
@@ -440,17 +477,21 @@ export default function Materials() {
               <div className="flex gap-3">
                 {/* ✅ Botão para criar obra */}
                 <button
-                  onClick={handleCreateConstruction}
-                  className="bg-green-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-green-700"
+                  onClick={handleNext}
+                  disabled={
+                    !Object.values(materialsByElement).every(
+                      (arr) => Array.isArray(arr) && arr.length > 0
+                    )
+                  }
+                  className={`px-6 py-3 rounded-xl font-semibold ${
+                    !Object.values(materialsByElement).every(
+                      (arr) => Array.isArray(arr) && arr.length > 0
+                    )
+                      ? "bg-gray-400 text-white cursor-not-allowed"
+                      : "bg-red-600 text-white hover:bg-red-700"
+                  }`}
                 >
                   Criar Obra
-                </button>
-
-                <button
-                  onClick={handleNext}
-                  className="bg-red-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-red-700"
-                >
-                  Concluir
                 </button>
               </div>
             </div>
@@ -476,7 +517,7 @@ export default function Materials() {
             </div>
 
             <div className="flex flex-col gap-3">
-              <label className="text-sm font-medium">Descrição</label>
+              <label className="text-sm font-medium">Nome</label>
               <textarea
                 placeholder="Digite a descrição do material"
                 value={newMaterialDesc}
@@ -485,32 +526,50 @@ export default function Materials() {
               />
 
               <label className="text-sm font-medium">Marca</label>
-              <select
-                value={newMaterialBrandId}
-                onChange={(e) => setNewMaterialBrandId(e.target.value)}
-                className="p-3 border rounded-xl"
-              >
-                <option value="">Selecione uma marca</option>
-                {allBrands.map((brand) => (
-                  <option key={brand.id} value={brand.id}>
-                    {brand.name}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  value={newMaterialBrandId}
+                  onChange={(e) => setNewMaterialBrandId(e.target.value)}
+                  className="p-3 border rounded-xl flex-1"
+                >
+                  <option value="">Selecione uma marca</option>
+                  {allBrands.map((brand) => (
+                    <option key={brand.id} value={brand.id}>
+                      {brand.name}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  onClick={() => setBrandModalOpen(true)}
+                  className="bg-blue-600 text-white px-3 rounded-xl flex items-center justify-center"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </div>
 
               <label className="text-sm font-medium">Tipo de Material</label>
-              <select
-                value={newMaterialTypeId}
-                onChange={(e) => setNewMaterialTypeId(e.target.value)}
-                className="p-3 border rounded-xl"
-              >
-                <option value="">Selecione um tipo</option>
-                {materialTypes.map((type) => (
-                  <option key={type.id} value={type.id}>
-                    {type.name}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  value={newMaterialTypeId}
+                  onChange={(e) => setNewMaterialTypeId(e.target.value)}
+                  className="p-3 border rounded-xl flex-1"
+                >
+                  <option value="">Selecione um tipo</option>
+                  {materialTypes.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.name}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  onClick={() => setTypeModalOpen(true)}
+                  className="bg-blue-600 text-white px-3 rounded-xl flex items-center justify-center"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </div>
 
               {modalError && (
                 <div className="text-sm text-red-600">{modalError}</div>
@@ -534,6 +593,136 @@ export default function Materials() {
                   {modalLoading ? "Criando..." : "Criar Material"}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {brandModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl w-full max-w-lg p-6 shadow-lg">
+            <h3 className="text-lg font-semibold mb-4">Criar Nova Marca</h3>
+
+            <input
+              type="text"
+              placeholder="Nome da marca"
+              value={newBrandName}
+              onChange={(e) => setNewBrandName(e.target.value)}
+              className="w-full p-3 border rounded-xl mb-3"
+            />
+
+            {brandError && (
+              <p className="text-sm text-red-600 mb-2">{brandError}</p>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setBrandModalOpen(false);
+                  setBrandError("");
+                }}
+                className="px-4 py-2 rounded-xl bg-gray-200"
+              >
+                Cancelar
+              </button>
+
+              <button
+                onClick={async () => {
+                  if (!newBrandName.trim()) {
+                    setBrandError("Informe um nome.");
+                    return;
+                  }
+
+                  setBrandLoading(true);
+
+                  try {
+                    await api.post("/materials/brands/", [
+                      { name: newBrandName.trim() },
+                    ]);
+
+                    const res = await api.get("/materials/brands/");
+                    const arr = res?.data?.data ?? res?.data ?? [];
+                    setAllBrands(arr);
+
+                    setBrandModalOpen(false);
+                    setNewBrandName("");
+                  } catch (err) {
+                    setBrandError(extractMessage(err));
+                  } finally {
+                    setBrandLoading(false);
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-blue-600 text-white"
+              >
+                {brandLoading ? "Criando..." : "Criar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal para criar Tipo */}
+      {typeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl w-full max-w-lg p-6 shadow-lg">
+            <h3 className="text-lg font-semibold mb-4">
+              Criar Novo Tipo de Material
+            </h3>
+
+            <input
+              type="text"
+              placeholder="Nome do tipo de material"
+              value={newTypeName}
+              onChange={(e) => setNewTypeName(e.target.value)}
+              className="w-full p-3 border rounded-xl mb-3"
+            />
+
+            {typeError && (
+              <p className="text-sm text-red-600 mb-2">{typeError}</p>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setTypeModalOpen(false);
+                  setTypeError("");
+                }}
+                className="px-4 py-2 rounded-xl bg-gray-200"
+              >
+                Cancelar
+              </button>
+
+              <button
+                onClick={async () => {
+                  if (!newTypeName.trim()) {
+                    setTypeError("Informe um nome.");
+                    return;
+                  }
+
+                  setTypeLoading(true);
+
+                  try {
+                    await api.post("/materials/types_of_materials/", [
+                      {
+                        name: newTypeName.trim(),
+                      },
+                    ]);
+
+                    const res = await api.get("/materials/types_of_materials/");
+                    const arr = res?.data?.data ?? res?.data ?? [];
+                    setMaterialTypes(arr);
+
+                    setTypeModalOpen(false);
+                    setNewTypeName("");
+                  } catch (err) {
+                    setTypeError(extractMessage(err));
+                  } finally {
+                    setTypeLoading(false);
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-blue-600 text-white"
+              >
+                {typeLoading ? "Criando..." : "Criar"}
+              </button>
             </div>
           </div>
         </div>
