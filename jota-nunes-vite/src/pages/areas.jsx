@@ -1,4 +1,3 @@
-// src/pages/SelecionarAreas.jsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus } from "lucide-react";
@@ -15,11 +14,9 @@ export default function SelecionarAreas() {
   // objeto: { "<refId>": [areaId, ...] }
   const [areasByReferential, setAreasByReferential] = useState({});
 
-  // === Modal state para criar nova área ===
+  // === Modal state para criar nova área (SIMPLIFICADO) ===
   const [modalOpen, setModalOpen] = useState(false);
   const [newAreaName, setNewAreaName] = useState("");
-  const [allElements, setAllElements] = useState([]);
-  const [selectedElementsForModal, setSelectedElementsForModal] = useState([]);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState("");
 
@@ -42,24 +39,17 @@ export default function SelecionarAreas() {
       setLoading(true);
       try {
         const stored = JSON.parse(localStorage.getItem("novaObra")) || {};
-        console.log("📦 LOCALSTORAGE (novaObra):", stored);
-
         const storedReferentials = stored.referentials || [];
-        console.log("➡ storedReferentials:", storedReferentials);
 
         // normaliza referentials: pode ser array de ids ou array de objects
         const referentialIds = storedReferentials
           .map((r) => referentialIdFrom(r))
           .filter(Boolean);
 
-        console.log("✅ referentialIds normalizados:", referentialIds);
-
         // fetch todas as areas
         const areasRes = await api.get("/areas/");
         const areasPayload = areasRes?.data?.data ?? areasRes?.data ?? [];
         const areasArr = Array.isArray(areasPayload) ? areasPayload : [];
-
-        console.log("📍 GET /areas:", areasArr);
 
         // fetch referentials somente para obter nomes
         let refsMeta = [];
@@ -67,7 +57,6 @@ export default function SelecionarAreas() {
           try {
             const refsRes = await api.get("/referentials/");
             const refsPayload = refsRes?.data?.data ?? refsRes?.data ?? [];
-            console.log("📍 GET /referentials:", refsPayload);
 
             if (Array.isArray(refsPayload)) {
               refsMeta = refsPayload
@@ -90,8 +79,6 @@ export default function SelecionarAreas() {
           }
         }
 
-        console.log("✅ refsMeta FINAL:", refsMeta);
-
         // garantir que todos os referentialIds estejam no meta
         const metaIds = refsMeta.map((r) => r.id);
         for (const id of referentialIds) {
@@ -103,8 +90,6 @@ export default function SelecionarAreas() {
         const saved = JSON.parse(localStorage.getItem("novaObra")) || {};
         const savedAreasByRef = saved.areas_by_referential || {};
 
-        console.log("📦 savedAreasByRef:", savedAreasByRef);
-
         const initialMap = {};
         for (const refId of referentialIds) {
           initialMap[refId] = Array.isArray(savedAreasByRef[refId])
@@ -112,14 +97,12 @@ export default function SelecionarAreas() {
             : [];
         }
 
-        console.log("✅ AreasByReferential (initialMap):", initialMap);
-
         setAllAreas(areasArr);
         setReferentialsMeta(refsMeta);
         setAreasByReferential(initialMap);
         localStorage.setItem("allAreasCache", JSON.stringify(areasArr));
       } catch (err) {
-        console.error("❌ Erro ao carregar áreas/referenciais:", err);
+        console.error(" Erro ao carregar áreas/referenciais:", err);
         setAllAreas([]);
         setReferentialsMeta([]);
         setAreasByReferential({});
@@ -131,21 +114,6 @@ export default function SelecionarAreas() {
     load();
   }, []);
 
-  // carregar elementos para o modal
-  useEffect(() => {
-    async function loadElements() {
-      try {
-        const elemRes = await api.get("/elements/");
-        const elemPayload = elemRes?.data?.data ?? elemRes?.data ?? [];
-        const elemsArr = Array.isArray(elemPayload) ? elemPayload : [];
-        setAllElements(elemsArr);
-      } catch (err) {
-        console.warn("Erro ao buscar elementos:", err);
-      }
-    }
-    loadElements();
-  }, []);
-
   // toggle de seleção de área dentro de um referential
   function toggleAreaForReferential(refId, areaId) {
     setAreasByReferential((prev) => {
@@ -154,7 +122,6 @@ export default function SelecionarAreas() {
         ? cur.filter((x) => x !== areaId)
         : [...cur, areaId];
       const next = { ...prev, [refId]: nextForRef };
-      // não salvar ainda no localStorage global — só no próximo botão (mas podemos salvar já)
       return next;
     });
   }
@@ -174,16 +141,7 @@ export default function SelecionarAreas() {
     return text.toLowerCase().includes(search.toLowerCase());
   }
 
-  // toggle elemento para modal
-  function toggleModalElement(elementId) {
-    setSelectedElementsForModal((prev) =>
-      prev.includes(elementId)
-        ? prev.filter((x) => x !== elementId)
-        : [...prev, elementId]
-    );
-  }
-
-  // criar nova área
+  // CRIAR NOVA ÁREA (Simplificado: Apenas nome)
   async function createArea() {
     setModalError("");
     if (!newAreaName || !newAreaName.trim()) {
@@ -192,55 +150,41 @@ export default function SelecionarAreas() {
     }
     setModalLoading(true);
 
-    const extractMessage = (err) => {
-      const resp = err?.response;
-      if (!resp) return err?.message || "Erro desconhecido";
-      const data = resp.data;
-      if (!data) return `Erro ${resp.status || ""}`;
-      if (typeof data === "string")
-        return resp.status === 404
-          ? "Endpoint não encontrado (404)."
-          : `Erro ${resp.status}`;
-      if (data?.detail) return data.detail;
-      if (data?.message) return data.message;
-      try {
-        return Object.entries(data)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
-          .join(" • ");
-      } catch {
-        return JSON.stringify(data);
-      }
-    };
-
     try {
-      // 1) criar AreaName (objeto, não lista)
+      // 1) Criar AreaName (apenas o nome)
       const anRes = await api.post("/areas/names/", [
         { name: newAreaName.trim() },
       ]);
+      
       const anPayload = anRes?.data?.data ?? anRes?.data ?? anRes;
-      let areaNameId =
-        (Array.isArray(anPayload) ? anPayload[0]?.id : anPayload?.id) ?? null;
-      if (!areaNameId && typeof anPayload === "object") {
-        areaNameId = anPayload?.id ?? anPayload?.pk ?? null;
+      
+      // Tenta extrair o ID de várias formas possíveis dependendo da resposta da API
+      let areaNameId = null;
+      
+      if (Array.isArray(anPayload)) {
+          areaNameId = anPayload[0]?.id;
+      } else if (typeof anPayload === 'object') {
+          areaNameId = anPayload?.id ?? anPayload?.pk;
       }
-      if (!areaNameId)
-        throw new Error(
-          "Não foi possível obter area_name_id a partir da resposta."
-        );
 
+      if (!areaNameId) {
+        throw new Error(
+          "Não foi possível obter o ID do nome da área criado. Verifique a resposta da API."
+        );
+      }
+
+      // 2) Criar a Área (vinculando o AreaName, sem elementos)
       const payload = [
         {
           area_name_id: areaNameId,
-          elements_ids: Array.isArray(selectedElementsForModal)
-            ? selectedElementsForModal
-            : [],
+          elements_ids: [], // Lista vazia, pois removemos a seleção de elementos
         },
       ];
 
       await api.post("/areas/", payload);
       console.log("Área criada com sucesso");
 
-      // 3) recarregar áreas
+      // 3) Recarregar lista de áreas
       try {
         const areasRes = await api.get("/areas/");
         const areasPayload = areasRes?.data?.data ?? areasRes?.data ?? [];
@@ -251,20 +195,21 @@ export default function SelecionarAreas() {
         console.warn("Erro ao recarregar áreas:", err);
       }
 
-      // fechar modal e resetar
+      // Fechar modal e resetar
       setModalOpen(false);
       setNewAreaName("");
-      setSelectedElementsForModal([]);
       setModalError("");
     } catch (err) {
       console.error("Erro ao criar área:", err);
-      setModalError(extractMessage(err));
+      // Tratamento de erro simplificado para exibição
+      const msg = err.response?.data?.detail || err.message || "Erro ao criar área.";
+      setModalError(typeof msg === 'string' ? msg : JSON.stringify(msg));
     } finally {
       setModalLoading(false);
     }
   }
 
-  // ui render
+  // UI Render
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="flex items-center gap-4 bg-red-700 text-white px-4 py-3 shadow-md">
@@ -308,7 +253,6 @@ export default function SelecionarAreas() {
           <div className="text-center text-gray-700">Carregando...</div>
         ) : (
           <>
-            {/* Para cada referential selecionado, mostramos a lista completa de áreas */}
             {referentialsMeta.map((ref) => {
               const refId = ref.id;
               const title = ref.name ?? `Referential ${refId}`;
@@ -331,9 +275,11 @@ export default function SelecionarAreas() {
                         .filter((a) => matchesSearch(areaTitle(a)))
                         .map((a) => {
                           const isSel = selectedForRef.includes(a.id);
+                          // Contagem de elementos (opcional, apenas para visualização)
                           const elementsCount = Array.isArray(a.elements)
                             ? a.elements.length
                             : a.elements_count ?? 0;
+
                           return (
                             <div
                               key={`${refId}-${a.id}`}
@@ -360,6 +306,7 @@ export default function SelecionarAreas() {
                                   {a.description}
                                 </p>
                               )}
+                              
                             </div>
                           );
                         })}
@@ -391,53 +338,56 @@ export default function SelecionarAreas() {
         )}
       </main>
 
-      {/* Modal: Criar Área */}
+      {/* Modal: Criar Área (SIMPLIFICADO) */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl w-full max-w-2xl p-6 shadow-lg">
+          <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-lg">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Criar Área</h3>
+              <h3 className="text-lg font-semibold">Criar Nova Área</h3>
               <button
                 onClick={() => {
                   setModalOpen(false);
                   setModalError("");
                 }}
-                className="text-gray-500"
+                className="text-gray-500 hover:text-gray-700"
               >
                 Fechar
               </button>
             </div>
 
             <div className="flex flex-col gap-3">
-              <label className="text-sm font-medium">Nome da área</label>
+              <label className="text-sm font-medium text-gray-700">Nome da área</label>
               <input
                 type="text"
-                placeholder="Digite o nome da nova área"
+                placeholder="Ex: Cozinha, Banheiro..."
                 value={newAreaName}
                 onChange={(e) => setNewAreaName(e.target.value)}
-                className="p-3 border rounded-xl"
+                className="p-3 border rounded-xl focus:border-red-600 focus:outline-none w-full"
+                autoFocus
               />
 
               {modalError && (
-                <div className="text-sm text-red-600">{modalError}</div>
+                <div className="text-sm text-red-600 bg-red-50 p-2 rounded-lg border border-red-200">
+                  {modalError}
+                </div>
               )}
 
-              <div className="flex justify-end gap-3 mt-3">
+              <div className="flex justify-end gap-3 mt-4">
                 <button
                   onClick={() => {
                     setModalOpen(false);
                     setModalError("");
                   }}
-                  className="px-4 py-2 rounded-xl bg-gray-200"
+                  className="px-4 py-2 rounded-xl bg-gray-200 hover:bg-gray-300 transition"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={createArea}
                   disabled={modalLoading}
-                  className="px-4 py-2 rounded-xl bg-red-600 text-white"
+                  className="px-6 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 disabled:bg-red-400 transition flex items-center gap-2"
                 >
-                  {modalLoading ? "Criando..." : "Criar Área"}
+                  {modalLoading ? "Criando..." : "Criar"}
                 </button>
               </div>
             </div>
