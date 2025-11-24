@@ -477,7 +477,7 @@ export default function Materials() {
               <div className="flex gap-3">
                 {/* ✅ Botão para criar obra */}
                 <button
-                  onClick={handleNext}
+                  onClick={handleCreateConstruction}
                   disabled={
                     !Object.values(materialsByElement).every(
                       (arr) => Array.isArray(arr) && arr.length > 0
