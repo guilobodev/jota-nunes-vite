@@ -72,7 +72,7 @@ export default function SelecionarElementos() {
         let refsMeta = [];
         if (referentialIds.length > 0) {
           try {
-            const refsRes = await api.get("/referentials/");
+            const refsRes = await api.get("/referentials/name");
             const payload = refsRes?.data?.data ?? refsRes?.data ?? [];
             if (Array.isArray(payload)) {
               refsMeta = payload

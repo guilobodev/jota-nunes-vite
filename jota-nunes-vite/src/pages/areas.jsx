@@ -29,7 +29,6 @@ export default function SelecionarAreas() {
     localStorage.setItem("novaObra", JSON.stringify(updated));
   }
 
-  // helper: extrai id de um referential object ou retorna o number
   function referentialIdFrom(ref) {
     if (!ref) return null;
     if (typeof ref === "number") return ref;
@@ -47,7 +46,6 @@ export default function SelecionarAreas() {
         const storedReferentials = stored.referentials || [];
         console.log("➡ storedReferentials:", storedReferentials);
 
-        // normaliza referentials: pode ser array de ids ou array de objects
         const referentialIds = storedReferentials
           .map((r) => referentialIdFrom(r))
           .filter(Boolean);
@@ -61,11 +59,10 @@ export default function SelecionarAreas() {
 
         console.log("📍 GET /areas:", areasArr);
 
-        // fetch referentials somente para obter nomes
         let refsMeta = [];
         if (referentialIds.length > 0) {
           try {
-            const refsRes = await api.get("/referentials/");
+            const refsRes = await api.get("/referentials/name");
             const refsPayload = refsRes?.data?.data ?? refsRes?.data ?? [];
             console.log("📍 GET /referentials:", refsPayload);
 
