@@ -7,6 +7,7 @@ import api from "../services/axios";
 
 export default function NovaObra() {
   const navigate = useNavigate();
+  
   const [referentials, setReferentials] = useState([]);
   const [observations, setObservations] = useState([]);
 
@@ -18,6 +19,8 @@ export default function NovaObra() {
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
   const [aprovationObservations, setAprovationObservations] = useState("");
+
+  const [isEditing, setIsEditing] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [observationsModalOpen, setObservationsModalOpen] = useState(false);
@@ -39,15 +42,12 @@ export default function NovaObra() {
     async function fetchReferentials() {
       try {
         const res = await api.get("/referentials/name/");
-        console.log("✅ RES.DATA:", res.data);
         const list = res?.data?.data ?? [];
-        console.log("✅ LIST:", list);
         setReferentials(list);
       } catch (err) {
-        console.error("❌ Erro ao buscar referentials:", err);
+        console.error("Erro ao buscar referentials:", err);
       }
     }
-
     fetchReferentials();
   }, []);
 
@@ -55,23 +55,80 @@ export default function NovaObra() {
     async function fetchObservations() {
       try {
         const res = await api.get("/observations/");
-        console.log("✅ Observations RES.DATA:", res.data);
         const list = res?.data?.data ?? [];
-        console.log("✅ Observations LIST:", list);
         setObservations(list);
       } catch (err) {
         console.error("❌ Erro ao buscar observations:", err);
       }
     }
-
     fetchObservations();
   }, []);
+
+  useEffect(() => {
+    const stored = JSON.parse(localStorage.getItem("novaObra"));
+    
+    if (stored) {
+      if (stored.id) setIsEditing(true);
+
+      setProjectName(stored.project_name || stored.projectName || "");
+      setLocation(stored.location || "");
+      setDescription(stored.description || "");
+      setAprovationObservations(stored.aprovation_observations || "");
+
+      if (stored.referentials && Array.isArray(stored.referentials)) {
+        const refIds = stored.referentials
+          .map(r => (typeof r === 'object' && r !== null ? r.id : r))
+          .filter(id => typeof id === 'number');
+        
+        setSelectedReferentials(refIds);
+      }
+
+      if (stored.observations_ids && Array.isArray(stored.observations_ids)) {
+         setSelectedObservations(stored.observations_ids);
+      } else if (stored.observations && Array.isArray(stored.observations)) {
+         const obsIds = stored.observations
+          .map(o => (typeof o === 'object' && o !== null ? o.id : o))
+          .filter(id => typeof id === 'number');
+         
+         setSelectedObservations(obsIds);
+      }
+    }
+  }, []);
+
+  const routerLocation = useLocation();
+  const modeloPadrao = routerLocation.state?.modeloPadrao || null;
+
+  useEffect(() => {
+    if (modeloPadrao) {
+      setIsEditing(false);
+      
+      setProjectName(modeloPadrao.name || "");
+      setDescription(modeloPadrao.description || "");
+      setLocation(modeloPadrao.location || "");
+
+      const modRefIds = (modeloPadrao.referentials || []).map(r => (typeof r === 'object' ? r.id : r));
+      const modObsIds = (modeloPadrao.observations || []).map(o => (typeof o === 'object' ? o.id : o));
+
+      setSelectedReferentials(modRefIds);
+      setSelectedObservations(modObsIds);
+
+ 
+      updateNovaObra({
+        id: null, 
+        projectName: modeloPadrao.name,
+        description: modeloPadrao.description,
+        location: modeloPadrao.location,
+        referentials: modRefIds,
+        observations_ids: modObsIds,
+        aprovation_observations: ""
+      });
+    }
+  }, [modeloPadrao]);
+
 
   const filteredReferentials = referentials.filter((r) =>
     r?.name?.toLowerCase().includes(searchReferentials.toLowerCase())
   );
-  const routerLocation = useLocation();
-  const modeloPadrao = routerLocation.state?.modeloPadrao || null;
 
   function toggleSelect(id) {
     setSelectedReferentials((prev) =>
@@ -88,13 +145,11 @@ export default function NovaObra() {
   function handleNext() {
     if (!projectName || !location || !description) {
       alert("Informe todos os dados gerais da obra.");
-      setModalError("Informe todos os campos obrigatórios.");
       return;
     }
 
     if (selectedReferentials.length === 0) {
       alert("Selecione pelo menos um referencial.");
-      setModalError("Selecione pelo menos um referencial.");
       return;
     }
 
@@ -110,180 +165,107 @@ export default function NovaObra() {
     navigate("/areas");
   }
 
-  useEffect(() => {
-    if (modeloPadrao) {
-      setProjectName(modeloPadrao.name || "");
-      setDescription(modeloPadrao.description || "");
-      setLocation(modeloPadrao.location || "");
 
-      setSelectedReferentials(modeloPadrao.referentials || []);
-      setSelectedObservations(modeloPadrao.observations || []);
-
-      updateNovaObra({
-        projectName: modeloPadrao.name,
-        description: modeloPadrao.description,
-        location: modeloPadrao.location,
-        referentials: modeloPadrao.referentials,
-        observations: modeloPadrao.observations,
-      });
-
-      console.log("🔄 Modelo padrão carregado:", modeloPadrao);
+  const extractMessage = (err) => {
+    const resp = err?.response;
+    if (!resp) return err?.message || "Erro desconhecido";
+    const data = resp.data;
+    if (!data) return `Erro ${resp.status || ""}`;
+    if (typeof data === "string") return resp.status === 404 ? "Endpoint não encontrado." : `Erro ${resp.status}`;
+    if (data?.detail) return data.detail;
+    if (data?.message) return data.message;
+    try {
+      return Object.entries(data).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`).join(" • ");
+    } catch {
+      return JSON.stringify(data);
     }
-  }, [modeloPadrao]);
+  };
+
+  // Criar Referencial
   async function createReferential() {
     setModalError("");
-
     if (!newRefName || !newRefName.trim()) {
       setModalError("Informe o nome do referencial.");
       return;
     }
-
     setModalLoading(true);
 
-    const extractMessage = (err) => {
-      const resp = err?.response;
-      if (!resp) return err?.message || "Erro desconhecido";
-      const data = resp.data;
-      if (!data) return `Erro ${resp.status || ""}`;
-      if (typeof data === "string") {
-        return resp.status === 404
-          ? "Endpoint não encontrado (404). Verifique a API."
-          : `Erro ${resp.status}`;
-      }
-      if (data?.detail) return data.detail;
-      if (data?.message) return data.message;
-      try {
-        return Object.entries(data)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
-          .join(" • ");
-      } catch {
-        return JSON.stringify(data);
-      }
-    };
-
     try {
-      const rnRes = await api.post("/referentials/", [
-        { name: newRefName.trim() },
-      ]);
+      const rnRes = await api.post("/referentials/", [{ name: newRefName.trim() }]);
       const rnPayload = rnRes?.data?.data ?? rnRes?.data ?? rnRes;
-      let refNameId =
-        (Array.isArray(rnPayload) ? rnPayload[0]?.id : rnPayload?.id) ?? null;
-      if (!refNameId && typeof rnPayload === "object") {
-        refNameId = rnPayload?.id ?? rnPayload?.pk ?? null;
-      }
-      if (!refNameId) {
-        throw new Error(
-          "Não foi possível obter referential_name_id a partir da resposta."
-        );
-      }
+      
+      let refNameId = null;
+      if(Array.isArray(rnPayload)) refNameId = rnPayload[0]?.id;
+      else refNameId = rnPayload?.id ?? rnPayload?.pk;
 
-      const payload = [
-        {
-          referential_name_id: refNameId,
-          areas_ids: Array.isArray(selectedAreasForModal)
-            ? selectedAreasForModal
-            : [],
-          comment: "",
-        },
-      ];
+      if (!refNameId) throw new Error("Erro ao obter ID do referencial criado.");
 
-      const res = await api.post("/referentials/name/", payload);
-      console.log("Referential criado:", res.data);
+      await api.post("/referentials/name/", [{
+        referential_name_id: refNameId,
+        areas_ids: [],
+        comment: "",
+      }]);
 
-      try {
-        const listRes = await api.get("/referentials/name/");
-        const list = listRes?.data?.data ?? listRes?.data ?? [];
-        setReferentials(list);
-      } catch (err) {
-        console.warn("Erro ao recarregar referentials:", err);
-      }
+      const listRes = await api.get("/referentials/name/");
+      const list = listRes?.data?.data ?? [];
+      setReferentials(list);
 
       setModalOpen(false);
       setNewRefName("");
-      setSelectedAreasForModal([]);
-      setModalError("");
     } catch (err) {
-      console.error("Erro ao criar referential:", err);
       setModalError(extractMessage(err));
     } finally {
       setModalLoading(false);
     }
   }
 
+  // Criar Observação
   async function createObservation() {
     setModalError("");
-
     if (!newObservationDesc || !newObservationDesc.trim()) {
-      setModalError("Informe a descrição da observação.");
+      setModalError("Informe a descrição.");
       return;
     }
-
     setModalLoading(true);
 
-    const extractMessage = (err) => {
-      const resp = err?.response;
-      if (!resp) return err?.message || "Erro desconhecido";
-
-      const data = resp.data;
-
-      if (!data) return `Erro ${resp.status || ""}`;
-
-      if (typeof data === "string") {
-        return resp.status === 404
-          ? "Endpoint não encontrado (404). Verifique a API."
-          : `Erro ${resp.status}`;
-      }
-
-      if (data?.detail) return data.detail;
-      if (data?.message) return data.message;
-
-      try {
-        return Object.entries(data)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
-          .join(" • ");
-      } catch {
-        return JSON.stringify(data);
-      }
-    };
-
     try {
-      const res = await api.post("/observations/", [
-        { description: newObservationDesc.trim() },
-      ]);
-      console.log("Observation criada:", res.data);
+      await api.post("/observations/", [{ description: newObservationDesc.trim() }]);
+      
+      const listRes = await api.get("/observations/");
+      const list = listRes?.data?.data ?? [];
+      setObservations(list);
 
-      try {
-        const listRes = await api.get("/observations/");
-        const list = listRes?.data?.data ?? listRes?.data ?? [];
-        setObservations(list);
-      } catch (err) {
-        console.warn("Erro ao recarregar observations:", err);
-      }
       setObservationsModalOpen(false);
       setNewObservationDesc("");
-      setModalError("");
     } catch (err) {
-      console.error("Erro ao criar observation:", err);
       setModalError(extractMessage(err));
     } finally {
       setModalLoading(false);
     }
   }
+
+  const handleBack = () => {
+    localStorage.removeItem("novaObra");
+    navigate("/home");
+  };
 
   return (
     <div className="min-h-screen bg-gray-100">
       {/* HEADER */}
       <header className="flex items-center gap-4 bg-red-700 text-white px-4 py-3 shadow-md">
         <button
-          onClick={() => navigate("/home")}
+          onClick={handleBack}
           className="p-2 rounded-lg hover:bg-red-600 transition"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="font-semibold text-lg">Criar Obra</h1>
+        <h1 className="font-semibold text-lg">
+             {isEditing ? "Editar Obra" : "Criar Obra"}
+        </h1>
       </header>
 
       <main className="max-w-5xl mx-auto p-6 flex flex-col gap-6">
+        
         {/* DADOS GERAIS */}
         <section className="bg-white p-6 rounded-2xl shadow-md flex flex-col gap-4">
           <h2 className="font-bold text-xl">Dados Gerais</h2>
@@ -316,7 +298,6 @@ export default function NovaObra() {
         <section className="bg-white p-6 rounded-2xl shadow-md flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="font-bold text-xl">Nome do referencial</h2>
-
             <button
               onClick={() => setModalOpen(true)}
               className="flex items-center justify-center gap-2 bg-green-600 text-white px-5 py-3 rounded-2xl shadow-md hover:bg-green-700 transition"
@@ -361,7 +342,6 @@ export default function NovaObra() {
         <section className="bg-white p-6 rounded-2xl shadow-md flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="font-bold text-xl">Observações</h2>
-
             <button
               onClick={() => setObservationsModalOpen(true)}
               className="flex items-center justify-center gap-2 bg-green-600 text-white px-5 py-3 rounded-2xl shadow-md hover:bg-green-700 transition"
@@ -396,7 +376,7 @@ export default function NovaObra() {
 
         <button
           onClick={handleNext}
-          className="bg-red-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-red-700"
+          className="bg-red-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-red-700 shadow-lg"
         >
           Próximo
         </button>
@@ -419,21 +399,15 @@ export default function NovaObra() {
               </div>
 
               <div className="flex flex-col gap-3">
-                <label className="text-sm font-medium">
-                  Nome do referencial
-                </label>
+                <label className="text-sm font-medium">Nome do referencial</label>
                 <input
                   type="text"
-                  placeholder="Digite o nome do novo referencial"
+                  placeholder="Digite o nome..."
                   value={newRefName}
                   onChange={(e) => setNewRefName(e.target.value)}
                   className="p-3 border rounded-xl"
                 />
-
-                {modalError && (
-                  <div className="text-sm text-red-600">{modalError}</div>
-                )}
-
+                {modalError && <div className="text-sm text-red-600">{modalError}</div>}
                 <div className="flex justify-end gap-3 mt-3">
                   <button
                     onClick={() => {
@@ -449,7 +423,7 @@ export default function NovaObra() {
                     disabled={modalLoading}
                     className="px-4 py-2 rounded-xl bg-red-600 text-white"
                   >
-                    {modalLoading ? "Criando..." : "Criar Referencial"}
+                    {modalLoading ? "Criando..." : "Criar"}
                   </button>
                 </div>
               </div>
@@ -475,20 +449,14 @@ export default function NovaObra() {
               </div>
 
               <div className="flex flex-col gap-3">
-                <label className="text-sm font-medium">
-                  Descrição da observação
-                </label>
+                <label className="text-sm font-medium">Descrição</label>
                 <textarea
-                  placeholder="Digite a descrição da observação"
+                  placeholder="Digite a descrição..."
                   value={newObservationDesc}
                   onChange={(e) => setNewObservationDesc(e.target.value)}
                   className="p-3 border rounded-xl min-h-24"
                 />
-
-                {modalError && (
-                  <div className="text-sm text-red-600">{modalError}</div>
-                )}
-
+                {modalError && <div className="text-sm text-red-600">{modalError}</div>}
                 <div className="flex justify-end gap-3 mt-3">
                   <button
                     onClick={() => {
@@ -504,7 +472,7 @@ export default function NovaObra() {
                     disabled={modalLoading}
                     className="px-4 py-2 rounded-xl bg-red-600 text-white"
                   >
-                    {modalLoading ? "Criando..." : "Criar Observação"}
+                    {modalLoading ? "Criando..." : "Criar"}
                   </button>
                 </div>
               </div>
