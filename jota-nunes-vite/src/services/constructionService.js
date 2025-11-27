@@ -29,3 +29,4 @@ export const deleteConstruction = async (id) => {
   const response = await api.delete(`/constructions/${id}/`);
   return response.data;
 };
+
