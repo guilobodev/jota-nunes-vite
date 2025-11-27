@@ -11,12 +11,10 @@ export default function Materials() {
   const [materialTypes, setMaterialTypes] = useState([]);
   const [referentialsMeta, setReferentialsMeta] = useState([]);
   
-  // Estados do localStorage
   const [areasByReferential, setAreasByReferential] = useState({});
   const [elementsByArea, setElementsByArea] = useState({});
   const [materialsByElement, setMaterialsByElement] = useState({});
 
-  // Modais
   const [brandModalOpen, setBrandModalOpen] = useState(false);
   const [newBrandName, setNewBrandName] = useState("");
   const [brandLoading, setBrandLoading] = useState(false);
@@ -55,11 +53,16 @@ export default function Materials() {
     if (!resp) return err?.message || "Erro desconhecido";
     const data = resp.data;
     if (!data) return `Erro ${resp.status || ""}`;
-    if (typeof data === "string") return resp.status === 404 ? "Endpoint não encontrado." : `Erro ${resp.status}`;
+    if (typeof data === "string")
+      return resp.status === 404
+        ? "Endpoint não encontrado (404)."
+        : `Erro ${resp.status}`;
     if (data?.detail) return data.detail;
     if (data?.message) return data.message;
     try {
-      return Object.entries(data).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`).join(" • ");
+      return Object.entries(data)
+        .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+        .join(" • ");
     } catch {
       return JSON.stringify(data);
     }
@@ -77,7 +80,6 @@ export default function Materials() {
         .map((r) => (typeof r === "object" ? r.id : r))
         .filter(Boolean);
 
-      // suportar os nomes que podem ter sido usados em novaObra
       const observationsIds = (
         stored.observations_ids ||
         stored.observations ||
@@ -91,27 +93,22 @@ export default function Materials() {
         return;
       }
 
-      const obsSource = stored.observations_ids || stored.observations || [];
-      const observationIds = obsSource.map((o) => 
-        typeof o === "object" ? o.id : o
-      );
-
       const payload = {
         project_name: stored.project_name || stored.projectName,
         location: stored.location,
         description: stored.description,
+        aprovation_observations: stored.aprovation_observations,
         referentials: referentialIds,
         observations: observationsIds,
       };
 
-      console.log("Payload enviado (IDs Planos):", payload);
 
       if (stored.id) {
-        await api.patch(`/constructions/${stored.id}/`, payload);
-        alert("Obra atualizada com sucesso!");
+         await api.patch(`/constructions/${stored.id}/`, payload);
+         alert("Obra atualizada com sucesso!");
       } else {
-        await api.post("/constructions/", payload);
-        alert("Obra criada com sucesso!");
+         await api.post("/constructions/", payload);
+         alert("Obra criada com sucesso!");
       }
 
       localStorage.removeItem("novaObra");
@@ -120,9 +117,10 @@ export default function Materials() {
     } catch (error) {
       console.error(error);
       alert(
-        "Erro ao criar obra: " +
+        "Erro ao salvar obra: " +
           (error?.response?.data?.error ||
-            error?.response?.data ||
+            error?.response?.data?.detail || 
+            JSON.stringify(error?.response?.data) ||
             error?.message ||
             "erro desconhecido")
       );
@@ -153,18 +151,25 @@ export default function Materials() {
               refsMeta = payload
                 .map((r) => ({
                   id: r.id,
-                  name: r?.referential_name?.name ?? r?.name ?? `Referential ${r.id}`,
+                  name:
+                    r?.referential_name?.name ??
+                    r?.name ??
+                    `Referential ${r.id}`,
                 }))
                 .filter((r) => referentialIds.includes(r.id));
             }
           } catch (err) {
-            refsMeta = referentialIds.map((id) => ({ id, name: `Referential ${id}` }));
+            refsMeta = referentialIds.map((id) => ({
+              id,
+              name: `Referential ${id}`,
+            }));
           }
         }
 
         const metaIds = refsMeta.map((r) => r.id);
         for (const id of referentialIds) {
-          if (!metaIds.includes(id)) refsMeta.push({ id, name: `Referential ${id}` });
+          if (!metaIds.includes(id))
+            refsMeta.push({ id, name: `Referential ${id}` });
         }
         refsMeta.sort((a, b) => a.id - b.id);
         setReferentialsMeta(refsMeta);
@@ -175,9 +180,14 @@ export default function Materials() {
             api.get("/materials/types_of_materials/")
         ]);
 
-        setAllMaterials(Array.isArray(matsRes?.data?.data ?? matsRes?.data) ? (matsRes?.data?.data ?? matsRes?.data) : []);
-        setAllBrands(Array.isArray(brandsRes?.data?.data ?? brandsRes?.data) ? (brandsRes?.data?.data ?? brandsRes?.data) : []);
-        setMaterialTypes(Array.isArray(typesRes?.data?.data ?? typesRes?.data) ? (typesRes?.data?.data ?? typesRes?.data) : []);
+        const matsPayload = matsRes?.data?.data ?? matsRes?.data ?? [];
+        setAllMaterials(Array.isArray(matsPayload) ? matsPayload : []);
+
+        const brandsPayload = brandsRes?.data?.data ?? brandsRes?.data ?? [];
+        setAllBrands(Array.isArray(brandsPayload) ? brandsPayload : []);
+
+        const typesPayload = typesRes?.data?.data ?? typesRes?.data ?? [];
+        setMaterialTypes(Array.isArray(typesPayload) ? typesPayload : []);
 
       } catch (err) {
         console.error("Erro ao carregar dados:", err);
@@ -187,9 +197,12 @@ export default function Materials() {
       
       try {
         const elementsRes = await api.get("/elements/");
-        const elementsArr = Array.isArray(elementsRes?.data?.data ?? elementsRes?.data) ? (elementsRes?.data?.data ?? elementsRes?.data) : [];
+        const elementsPayload = elementsRes?.data?.data ?? elementsRes?.data ?? [];
+        const elementsArr = Array.isArray(elementsPayload) ? elementsPayload : [];
         localStorage.setItem("allElementsCache", JSON.stringify(elementsArr));
-      } catch (err) { console.warn(err); }
+      } catch (err) {
+        console.warn("Erro ao buscar elementos:", err);
+      }
     }
 
     load();
@@ -211,7 +224,9 @@ export default function Materials() {
 
   function elementName(e) {
     if (!e) return "Elemento";
-    return e.name || e.element_type?.name || e.element_type?.type_name || "Elemento";
+    return (
+      e.name || e.element_type?.name || e.element_type?.type_name || "Elemento"
+    );
   }
 
   function areaName(a) {
@@ -225,21 +240,32 @@ export default function Materials() {
 
   async function createMaterial() {
     setModalError("");
-    if (!newMaterialDesc.trim() || !newMaterialBrandId || !newMaterialTypeId) {
-      setModalError("Preencha todos os campos.");
+    if (!newMaterialDesc || !newMaterialDesc.trim()) {
+      setModalError("Informe a descrição do material.");
+      return;
+    }
+    if (!newMaterialBrandId) {
+      setModalError("Selecione uma marca.");
+      return;
+    }
+    if (!newMaterialTypeId) {
+      setModalError("Selecione um tipo de material.");
       return;
     }
     setModalLoading(true);
 
     try {
-      await api.post("/materials/", [{
+      await api.post("/materials/", [
+        {
           description: newMaterialDesc.trim(),
           brand: parseInt(newMaterialBrandId),
           material_type: parseInt(newMaterialTypeId),
-      }]);
+        },
+      ]);
 
       const matsRes = await api.get("/materials/");
-      setAllMaterials(Array.isArray(matsRes?.data?.data ?? matsRes?.data) ? (matsRes?.data?.data ?? matsRes?.data) : []);
+      const matsPayload = matsRes?.data?.data ?? matsRes?.data ?? [];
+      setAllMaterials(Array.isArray(matsPayload) ? matsPayload : []);
 
       setMaterialModalOpen(false);
       setNewMaterialDesc("");
@@ -273,7 +299,9 @@ export default function Materials() {
         <section className="bg-white p-6 rounded-2xl shadow-md flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="font-bold text-xl">Materiais disponíveis</h2>
-            <p className="text-sm text-gray-500">Escolha os materiais para cada elemento</p>
+            <p className="text-sm text-gray-500">
+              Escolha os materiais para cada elemento
+            </p>
           </div>
 
           <div className="flex gap-3 items-center">
@@ -288,7 +316,8 @@ export default function Materials() {
               onClick={() => setMaterialModalOpen(true)}
               className="flex items-center justify-center gap-2 bg-green-600 text-white px-5 py-3 rounded-2xl shadow-md hover:bg-green-700 transition"
             >
-              <Plus className="w-5 h-5" /> Novo
+              <Plus className="w-5 h-5" />
+              Novo
             </button>
           </div>
         </section>
@@ -303,14 +332,21 @@ export default function Materials() {
               const areaList = areasByReferential[refId] ?? [];
 
               return (
-                <section key={refId} className="bg-white p-6 rounded-2xl shadow-md flex flex-col gap-6">
-                  <h3 className="font-semibold text-xl">{refName} — Áreas ({areaList.length})</h3>
+                <section
+                  key={refId}
+                  className="bg-white p-6 rounded-2xl shadow-md flex flex-col gap-6"
+                >
+                  <h3 className="font-semibold text-xl">
+                    {refName} — Áreas ({areaList.length})
+                  </h3>
 
                   {areaList.length === 0 ? (
                     <p className="text-gray-500">Nenhuma área selecionada.</p>
                   ) : (
                     areaList.map((areaId) => {
-                      const areaData = allAreasFromStorage.find((a) => a.id === areaId);
+                      const areaData = allAreasFromStorage.find(
+                        (a) => a.id === areaId
+                      );
                       const titleArea = areaName(areaData);
                       const areaKey = `${refId}-${areaId}`;
                       const selectedElems = elementsByArea[areaKey] || [];
@@ -318,41 +354,80 @@ export default function Materials() {
                       if (selectedElems.length === 0) return null;
 
                       return (
-                        <div key={areaKey} className="border border-gray-200 rounded-xl p-4 flex flex-col gap-6">
+                        <div
+                          key={areaKey}
+                          className="border border-gray-200 rounded-xl p-4 flex flex-col gap-6"
+                        >
                           <div className="flex justify-between items-center">
-                            <h4 className="font-semibold text-lg">{titleArea}</h4>
-                            <p className="text-sm text-gray-500">{selectedElems.length} elemento(s)</p>
+                            <h4 className="font-semibold text-lg">
+                              {titleArea}
+                            </h4>
+                            <p className="text-sm text-gray-500">
+                              {selectedElems.length} elemento(s)
+                            </p>
                           </div>
 
                           {selectedElems.map((elementId) => {
-                            const elemData = allElementsCache.find((e) => e.id === elementId);
+                            const elemData = allElementsCache.find(
+                              (e) => e.id === elementId
+                            );
                             const elemName = elementName(elemData);
                             const elemKey = `${refId}-${areaId}-${elementId}`;
                             const selectedMats = materialsByElement[elemKey] || [];
 
                             return (
-                              <div key={elemKey} className="border border-gray-300 rounded-lg p-4 flex flex-col gap-4 bg-gray-50">
+                              <div
+                                key={elemKey}
+                                className="border border-gray-300 rounded-lg p-4 flex flex-col gap-4 bg-gray-50"
+                              >
                                 <div className="flex justify-between items-center">
-                                  <h5 className="font-semibold text-base">{elemName}</h5>
-                                  <span className="text-xs text-gray-500">{selectedMats.length} material(is)</span>
+                                  <h5 className="font-semibold text-base">
+                                    {elemName}
+                                  </h5>
+                                  <span className="text-xs text-gray-500">
+                                    {selectedMats.length} material(is)
+                                  </span>
                                 </div>
 
                                 <div className="grid md:grid-cols-2 gap-3">
                                   {allMaterials
-                                    .filter((mat) => matchesSearch(mat?.description || mat?.name || ""))
+                                    .filter((mat) => {
+                                      const matName =
+                                        mat?.description ||
+                                        mat?.name ||
+                                        `Material ${mat.id}`;
+                                      return matchesSearch(matName);
+                                    })
                                     .map((mat) => {
                                       const isSel = selectedMats.includes(mat.id);
                                       return (
                                         <div
                                           key={`${elemKey}-${mat.id}`}
-                                          onClick={() => toggleMaterial(refId, areaId, elementId, mat.id)}
+                                          onClick={() =>
+                                            toggleMaterial(
+                                              refId,
+                                              areaId,
+                                              elementId,
+                                              mat.id
+                                            )
+                                          }
                                           className={`cursor-pointer bg-white p-4 rounded-lg border shadow-sm transition flex flex-col gap-1 ${
-                                            isSel ? "border-red-600 ring-2 ring-red-400" : "border-gray-200 hover:border-red-300"
+                                            isSel
+                                              ? "border-red-600 ring-2 ring-red-400"
+                                              : "border-gray-200 hover:border-red-300"
                                           }`}
                                         >
-                                          <p className="text-sm font-medium text-gray-900">{mat?.description || mat?.name}</p>
-                                          <p className="text-xs text-gray-600">Marca: {mat?.brand_name || "N/A"}</p>
-                                          <p className="text-xs text-gray-600">Tipo: {mat?.material_type_name || "N/A"}</p>
+                                          <p className="text-sm font-medium text-gray-900">
+                                            {mat?.description ||
+                                              mat?.name ||
+                                              `Material ${mat.id}`}
+                                          </p>
+                                          <p className="text-xs text-gray-600">
+                                            Marca: {mat?.brand_name || "N/A"}
+                                          </p>
+                                          <p className="text-xs text-gray-600">
+                                            Tipo: {mat?.material_type_name || "N/A"}
+                                          </p>
                                         </div>
                                       );
                                     })}
@@ -369,16 +444,25 @@ export default function Materials() {
             })}
 
             <div className="flex justify-between items-center my-6">
-              <button onClick={() => navigate("/elementos")} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-xl hover:bg-gray-300">
+              <button
+                onClick={() => navigate("/elementos")}
+                className="bg-gray-200 text-gray-800 px-4 py-2 rounded-xl hover:bg-gray-300"
+              >
                 Voltar
               </button>
 
               <div className="flex gap-3">
                 <button
                   onClick={handleCreateConstruction}
-                  disabled={!Object.values(materialsByElement).some((arr) => Array.isArray(arr) && arr.length > 0)}
+                  disabled={
+                    !Object.values(materialsByElement).some(
+                      (arr) => Array.isArray(arr) && arr.length > 0
+                    )
+                  }
                   className={`px-6 py-3 rounded-xl font-semibold transition shadow-lg ${
-                    !Object.values(materialsByElement).some((arr) => Array.isArray(arr) && arr.length > 0)
+                    !Object.values(materialsByElement).some(
+                      (arr) => Array.isArray(arr) && arr.length > 0
+                    )
                       ? "bg-gray-400 text-white cursor-not-allowed"
                       : "bg-red-600 text-white hover:bg-red-700"
                   }`}

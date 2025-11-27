@@ -1,4 +1,3 @@
-// src/pages/SelecionarElementos.jsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus } from "lucide-react";
@@ -7,23 +6,20 @@ import api from "../services/axios";
 export default function SelecionarElementos() {
   const navigate = useNavigate();
 
-  const [allElements, setAllElements] = useState([]); // todos os elementos do backend
-  const [referentialsMeta, setReferentialsMeta] = useState([]); // [{id,name}]
-  const [areasByReferential, setAreasByReferential] = useState({}); // do localStorage
-  const [elementsByArea, setElementsByArea] = useState({}); // {"refId-areaId": [elementId, ...]}
+  const [allElements, setAllElements] = useState([]); 
+  const [referentialsMeta, setReferentialsMeta] = useState([]); 
+  const [areasByReferential, setAreasByReferential] = useState({});
+  const [elementsByArea, setElementsByArea] = useState({});
 
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  // === Modal state para criar novo elemento ===
   const [modalOpen, setModalOpen] = useState(false);
   const [elementTypes, setElementTypes] = useState([]);
   const [allMaterials, setAllMaterials] = useState([]);
   const [selectedTypeId, setSelectedTypeId] = useState(null);
   const [newTypeName, setNewTypeName] = useState("");
-  const [selectedMaterialsForModal, setSelectedMaterialsForModal] = useState(
-    []
-  );
+  const [selectedMaterialsForModal, setSelectedMaterialsForModal] = useState([]);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState("");
 
@@ -33,10 +29,6 @@ export default function SelecionarElementos() {
     localStorage.setItem("novaObra", JSON.stringify(updated));
   }
 
-  const todasAreasPreenchidas = Object.values(elementsByArea).every(
-    (arr) => Array.isArray(arr) && arr.length > 0
-  );
-
   function referentialIdFrom(r) {
     if (!r) return null;
     if (typeof r === "number") return r;
@@ -44,21 +36,30 @@ export default function SelecionarElementos() {
     return null;
   }
 
-  //
-  //
-
   function hasAnyElementSelected() {
     return Object.values(elementsByArea).some(
       (arr) => Array.isArray(arr) && arr.length > 0
     );
   }
+
   useEffect(() => {
     async function load() {
       setLoading(true);
       try {
-        const stored = JSON.parse(localStorage.getItem("novaObra")) || {};
+
+        const obraEdit = JSON.parse(localStorage.getItem("obraEmEdicao"));
+
+        const stored =
+          obraEdit?.selecionar_elementos ||
+          JSON.parse(localStorage.getItem("novaObra")) ||
+          {};
+
+        if (obraEdit) {
+          updateNovaObra(obraEdit.selecionar_elementos);
+        }
 
         const refRaw = stored.referentials || [];
+
         const referentialIds = refRaw
           .map((r) => referentialIdFrom(r))
           .filter(Boolean);
@@ -74,17 +75,16 @@ export default function SelecionarElementos() {
           try {
             const refsRes = await api.get("/referentials/name");
             const payload = refsRes?.data?.data ?? refsRes?.data ?? [];
-            if (Array.isArray(payload)) {
-              refsMeta = payload
-                .map((r) => ({
-                  id: r.id,
-                  name:
-                    r?.referential_name?.name ??
-                    r?.name ??
-                    `Referential ${r.id}`,
-                }))
-                .filter((r) => referentialIds.includes(r.id));
-            }
+
+            refsMeta = payload
+              .map((r) => ({
+                id: r.id,
+                name:
+                  r?.referential_name?.name ??
+                  r?.name ??
+                  `Referential ${r.id}`,
+              }))
+              .filter((r) => referentialIds.includes(r.id));
           } catch (err) {
             refsMeta = referentialIds.map((id) => ({
               id,
@@ -102,10 +102,9 @@ export default function SelecionarElementos() {
         setReferentialsMeta(refsMeta);
 
         const elemRes = await api.get("/elements/");
-
         const elemPayload = elemRes?.data?.data ?? elemRes?.data ?? [];
-        const elemsArr = Array.isArray(elemPayload) ? elemPayload : [];
-        setAllElements(elemsArr);
+        setAllElements(Array.isArray(elemPayload) ? elemPayload : []);
+
       } catch (err) {
         console.error("Erro ao carregar elementos:", err);
         setAllElements([]);
@@ -124,23 +123,16 @@ export default function SelecionarElementos() {
   useEffect(() => {
     async function loadAux() {
       try {
-        // fetch element types
         const typesRes = await api.get("/elements/types/");
         const typesPayload = typesRes?.data?.data ?? typesRes?.data ?? [];
-        const typesArr = Array.isArray(typesPayload) ? typesPayload : [];
-        setElementTypes(typesArr);
-      } catch (err) {
-        console.warn("Erro ao buscar tipos de elementos:", err);
-      }
+        setElementTypes(Array.isArray(typesPayload) ? typesPayload : []);
+      } catch (err) {}
+
       try {
-        // fetch materials
         const matsRes = await api.get("/materials/");
         const matsPayload = matsRes?.data?.data ?? matsRes?.data ?? [];
-        const matsArr = Array.isArray(matsPayload) ? matsPayload : [];
-        setAllMaterials(matsArr);
-      } catch (err) {
-        console.warn("Erro ao buscar materiais:", err);
-      }
+        setAllMaterials(Array.isArray(matsPayload) ? matsPayload : []);
+      } catch (err) {}
     }
     loadAux();
   }, []);
@@ -165,9 +157,11 @@ export default function SelecionarElementos() {
     updateNovaObra({ elements_by_area: elementsByArea });
     navigate("/materiais");
   }
+
   function elementName(e) {
     return e?.element_type?.name || "Elemento";
   }
+
   function areaName(a) {
     return a?.area_name?.name ?? a?.name ?? `Área ${a?.id ?? ""}`;
   }
@@ -177,7 +171,6 @@ export default function SelecionarElementos() {
     return text.toLowerCase().includes(search.toLowerCase());
   }
 
-  // toggle material para modal
   function toggleModalMaterial(materialId) {
     setSelectedMaterialsForModal((prev) =>
       prev.includes(materialId)
@@ -186,101 +179,56 @@ export default function SelecionarElementos() {
     );
   }
 
-  // criar novo elemento
   async function createElement() {
     setModalError("");
     let typeId = selectedTypeId;
 
-    // se não selecionou tipo, tenta usar nome digitado para buscar correspondência ou criar novo
     if (!typeId && newTypeName && newTypeName.trim()) {
       const match = elementTypes.find(
         (t) => t.name?.toLowerCase() === newTypeName.trim().toLowerCase()
       );
-      if (match) {
-        typeId = match.id;
-      } else {
-        // será criado novo tipo
-      }
+      if (match) typeId = match.id;
     }
 
-    // validar que temos typeId ou vamos criar um novo tipo
     if (!typeId && (!newTypeName || !newTypeName.trim())) {
-      setModalError("Selecione um tipo de elemento ou informe um novo tipo.");
+      setModalError("Selecione um tipo ou informe um novo tipo.");
       return;
     }
 
     setModalLoading(true);
 
-    const extractMessage = (err) => {
-      const resp = err?.response;
-      if (!resp) return err?.message || "Erro desconhecido";
-      const data = resp.data;
-      if (!data) return `Erro ${resp.status || ""}`;
-      if (typeof data === "string")
-        return resp.status === 404
-          ? "Endpoint não encontrado (404)."
-          : `Erro ${resp.status}`;
-      if (data?.detail) return data.detail;
-      if (data?.message) return data.message;
-      try {
-        return Object.entries(data)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
-          .join(" • ");
-      } catch {
-        return JSON.stringify(data);
-      }
-    };
-
     try {
-      // 1) criar ElementType se necessário (enviar como array, many=True)
-      if (!typeId && newTypeName && newTypeName.trim()) {
+      if (!typeId && newTypeName.trim()) {
         const etRes = await api.post("/elements/types/", [
           { name: newTypeName.trim() },
         ]);
+
         const etPayload = etRes?.data?.data ?? etRes?.data ?? etRes;
         typeId =
-          (Array.isArray(etPayload) ? etPayload[0]?.id : etPayload?.id) ?? null;
-        if (!typeId && typeof etPayload === "object") {
-          typeId = etPayload?.id ?? etPayload?.pk ?? null;
-        }
-        if (!typeId)
-          throw new Error(
-            "Não foi possível obter element_type_id a partir da resposta."
-          );
+          (Array.isArray(etPayload) ? etPayload[0]?.id : etPayload?.id) ??
+          null;
       }
 
-      // 2) criar Element (enviar como array, many=True)
       const payload = [
         {
           element_type_id: typeId,
-          material_ids: Array.isArray(selectedMaterialsForModal)
-            ? selectedMaterialsForModal
-            : [],
+          material_ids: selectedMaterialsForModal,
         },
       ];
 
       await api.post("/elements/", payload);
-      console.log("Elemento criado com sucesso");
 
-      // 3) recarregar elementos
-      try {
-        const elemRes = await api.get("/elements/");
-        const elemPayload = elemRes?.data?.data ?? elemRes?.data ?? [];
-        const elemsArr = Array.isArray(elemPayload) ? elemPayload : [];
-        setAllElements(elemsArr);
-      } catch (err) {
-        console.warn("Erro ao recarregar elementos:", err);
-      }
+      const elemRes = await api.get("/elements/");
+      const elemPayload = elemRes?.data?.data ?? elemRes?.data ?? [];
+      setAllElements(Array.isArray(elemPayload) ? elemPayload : []);
 
-      // fechar modal e resetar
       setModalOpen(false);
       setSelectedTypeId(null);
       setNewTypeName("");
       setSelectedMaterialsForModal([]);
-      setModalError("");
+
     } catch (err) {
-      console.error("Erro ao criar elemento:", err);
-      setModalError(extractMessage(err));
+      setModalError("Erro ao criar elemento.");
     } finally {
       setModalLoading(false);
     }
@@ -376,7 +324,6 @@ export default function SelecionarElementos() {
                           <div className="grid md:grid-cols-2 gap-4">
                             {allElements
                               .filter((el) => {
-                                // Buscar pelo nome do elemento OU pelo element_type
                                 const name =
                                   el?.element_type?.name ??
                                   el?.name ??
@@ -433,9 +380,7 @@ export default function SelecionarElementos() {
               <div className="flex justify-end mt-6">
                 <button
                   onClick={handleNext}
-                  disabled={Object.values(elementsByArea).some(
-                    (arr) => !arr || arr.length === 0
-                  )}
+                  disabled={!hasAnyElementSelected()}
                   className="bg-red-600 disabled:bg-gray-400 text-white px-6 py-3 rounded-xl font-semibold hover:bg-red-700"
                 >
                   Próximo
@@ -446,7 +391,6 @@ export default function SelecionarElementos() {
         )}
       </main>
 
-      {/* Modal: Criar Elemento */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl w-full max-w-2xl p-6 shadow-lg">
