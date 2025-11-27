@@ -77,53 +77,26 @@ export default function Materials() {
         typeof r === "object" ? r.id : r
       );
 
-      
-      const nestedReferentials = referentialIds.map(refId => {
-        const areaIds = areasByReferential[refId] || [];
-        
-        const nestedAreas = areaIds.map(areaId => {
-            const areaKey = `${refId}-${areaId}`;
-            const elementIds = elementsByArea[areaKey] || [];
-            
-            const nestedElements = elementIds.map(elementId => {
-                const elemKey = `${refId}-${areaId}-${elementId}`;
-          
-                const materialIds = materialsByElement[elemKey] || [];
-                
-                return {
-                    id: elementId, 
-                    materials: materialIds
-                };
-            });
-
-            return {
-                id: areaId, 
-                elements: nestedElements
-            };
-        });
-
-        return {
-            id: refId,
-            areas: nestedAreas
-        };
-      });
+      const obsSource = stored.observations_ids || stored.observations || [];
+      const observationIds = obsSource.map((o) => 
+        typeof o === "object" ? o.id : o
+      );
 
       const payload = {
         project_name: stored.project_name || stored.projectName,
         location: stored.location,
         description: stored.description,
-        aprovation_observations: stored.aprovation_observations, 
-        referentials: nestedReferentials,
+        aprovation_observations: stored.aprovation_observations,
+        referentials: referentialIds, 
+        observations: observationIds, 
       };
 
-      console.log("Payload enviado para API:", JSON.stringify(payload, null, 2));
+      console.log("Payload enviado (IDs Planos):", payload);
 
       if (stored.id) {
-        console.log("Atualizando obra ID:", stored.id);
         await api.patch(`/constructions/${stored.id}/`, payload);
         alert("Obra atualizada com sucesso!");
       } else {
-        console.log("Criando nova obra...");
         await api.post("/constructions/", payload);
         alert("Obra criada com sucesso!");
       }

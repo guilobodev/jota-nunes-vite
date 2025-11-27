@@ -335,65 +335,72 @@ export default function Home() {
   };
 
  const handleEditarObra = async (id) => {
-  try {
-    const { data } = await api.get(`/constructions/${id}/`);
-    
-    const areasByRef = {};
-    const elementsByArea = {};
-    const materialsByElement = {};
-
-
-    const referentialNameIds = [];
-
-    if (data.referentials && Array.isArray(data.referentials)) {
-      data.referentials.forEach(ref => {
+    try {
+      const { data } = await api.get(`/constructions/${id}/`);
+      console.log("DADOS DA OBRA (API):", data);
       
-        const refNameId = ref.referential_name?.id ?? ref.referential_name;
+      const areasByRef = {};
+      const elementsByArea = {};
+      const materialsByElement = {};
+      const referentialNameIds = [];
+
+      if (data.referentials && Array.isArray(data.referentials)) {
+        data.referentials.forEach(ref => {
         
-        if (refNameId) {
-          referentialNameIds.push(refNameId);
+          const refNameId = ref.referential_name?.id ?? ref.id;
           
+          referentialNameIds.push(refNameId);
+
           const areas = ref.areas || [];
+          
           areasByRef[refNameId] = areas.map(a => a.id);
 
           areas.forEach(area => {
             const areaId = area.id;
             const elements = area.elements || [];
             
-            const key = `${refNameId}-${areaId}`;
-            elementsByArea[key] = elements.map(e => e.id);
+            const areaKey = `${refNameId}-${areaId}`;
+            elementsByArea[areaKey] = elements.map(e => e.id);
 
             elements.forEach(el => {
                 const elementId = el.id;
                 const materials = el.materials || [];
+                
                 const elemKey = `${refNameId}-${areaId}-${elementId}`;
                 materialsByElement[elemKey] = materials.map(m => m.id);
             });
           });
-        }
-      });
+        });
+      }
+
+      const observationsIds = (data.observations || []).map(obs => 
+        typeof obs === 'object' ? obs.id : obs
+      );
+
+      const dadosEdicao = {
+        id: data.id,
+        projectName: data.project_name,
+        location: data.location,
+        description: data.description,
+        aprovation_observations: data.aprovation_observations,
+      
+        referentials: referentialNameIds, 
+        observations_ids: observationsIds,
+        areas_by_referential: areasByRef,
+        elements_by_area: elementsByArea,
+        materials_by_element: materialsByElement,
+        
+        ...data 
+      };
+
+      localStorage.setItem("novaObra", JSON.stringify(dadosEdicao));
+      navigate("/criacao");
+
+    } catch (error) {
+      console.error("Erro ao carregar obra para edição:", error);
+      alert("Não foi possível carregar os dados para edição.");
     }
-
-    const dadosEdicao = {
-      id: data.id,
-      projectName: data.project_name,
-      location: data.location,
-      description: data.description,
-      referentials: referentialNameIds, 
-      areas_by_referential: areasByRef,
-      elements_by_area: elementsByArea,
-      materials_by_element: materialsByElement,
-      ...data
-    };
-
-    localStorage.setItem("novaObra", JSON.stringify(dadosEdicao));
-    navigate("/criacao");
-
-  } catch (error) {
-    console.error("Erro ao carregar obra para edição:", error);
-    alert("Não foi possível carregar os dados para edição.");
-  }
-};
+  };
 
   const confirmarCriacaoModelo = async () => {
     if (!nomeModelo.trim()) {
