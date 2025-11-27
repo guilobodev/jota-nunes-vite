@@ -3,11 +3,11 @@
 
 ![Vite](https://img.shields.io/badge/Vite-5.0-purple?logo=vite&style=for-the-badge)
 ![React](https://img.shields.io/badge/React-18-blue?logo=react&style=for-the-badge)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript&style=for-the-badge)
+
 
 <br/>
 
-Aplicação moderna para gestão de imóveis, construída com Vite, React e TypeScript, oferecendo velocidade, escalabilidade e uma experiência fluida no desenvolvimento e uso.
+Aplicação moderna para gestão de imóveis, construída com Vite, React e JavaScript, oferecendo velocidade, escalabilidade e uma experiência fluida no desenvolvimento e uso.
 
 </div>
 
@@ -24,5 +24,5 @@ A estrutura do projeto contém a pasta src com assets, components, pages, App.ts
 Documentações recomendadas incluem Vite, React, TypeScript e Tailwind CSS. Para contribuir, basta fazer um fork, criar uma branch, realizar commits, enviar para o repositório e abrir um Pull Request. O projeto é licenciado sob MIT License.
 
 <div align="center">
-Feito com ❤️ por Gabriel
+Feito por Gabriel
 </div>
