@@ -73,9 +73,23 @@ export default function Materials() {
         return;
       }
 
-      const referentialIds = (stored.referentials || []).map((r) =>
-        typeof r === "object" ? r.id : r
-      );
+      const referentialIds = (stored.referentials || [])
+        .map((r) => (typeof r === "object" ? r.id : r))
+        .filter(Boolean);
+
+      // suportar os nomes que podem ter sido usados em novaObra
+      const observationsIds = (
+        stored.observations_ids ||
+        stored.observations ||
+        []
+      )
+        .map((o) => (typeof o === "object" ? o.id : o))
+        .filter(Boolean);
+
+      if (observationsIds.length === 0) {
+        alert("Selecione pelo menos uma observação antes de criar a obra.");
+        return;
+      }
 
       const obsSource = stored.observations_ids || stored.observations || [];
       const observationIds = obsSource.map((o) => 
@@ -86,9 +100,8 @@ export default function Materials() {
         project_name: stored.project_name || stored.projectName,
         location: stored.location,
         description: stored.description,
-        aprovation_observations: stored.aprovation_observations,
-        referentials: referentialIds, 
-        observations: observationIds, 
+        referentials: referentialIds,
+        observations: observationsIds,
       };
 
       console.log("Payload enviado (IDs Planos):", payload);
@@ -105,8 +118,14 @@ export default function Materials() {
       navigate("/home");
 
     } catch (error) {
-      console.error("Erro ao salvar obra:", error);
-      alert(`Erro ao salvar: ${extractMessage(error)}`);
+      console.error(error);
+      alert(
+        "Erro ao criar obra: " +
+          (error?.response?.data?.error ||
+            error?.response?.data ||
+            error?.message ||
+            "erro desconhecido")
+      );
     }
   }
 
