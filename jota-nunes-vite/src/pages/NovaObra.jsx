@@ -4,62 +4,46 @@ import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-
-// Primeiro precisamos construir  Element = [{"element_type_id": num, "material_ids": [nums...]}], 
-
-/* 
-Estrutura de criação antes de obra:
-1- Element = [{"element_type_id": num, "material_ids": [nums...]}], 
-2- Area = [{"area_name_id": num, "elements_ids": [Element1.id, ...]}],
-3- Referential = [{"referential_name_id": num, "areas_ids": [Area1.id, ...]}],
-*/
-
 export default function NovaObra() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [newRefName, setNewRefName] = useState("");
-  const [selectedAreasForModal, setSelectedAreasForModal] = useState([]);
-  const [modalError, setModalError] = useState("");
-  const [modalLoading, setModalLoading] = useState(false);
-  // =================== STEP 1 ======================
+  // STEP 1
   const [projectName, setProjectName] = useState("");
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
 
-  // Nome mais correto seria referentialsNames
   const [referentials, setReferentials] = useState([]);
-
   const [observations, setObservations] = useState([]);
   const [selectedReferentials, setSelectedReferentials] = useState([]);
   const [selectedObservations, setSelectedObservations] = useState([]);
 
-  const [completeReferentialsData, setCompleteReferentialsData] = useState([]);
+  const [refData, setRefData] = useState({}); // { refId: { areas: [{id,label,elements:[{id,label,materials:[{value,label}]}]}] } }
 
-  // =================== STEP 2 ======================
-  // This shoud be areaName
+  // STEP 2
   const [areasOptions, setAreasOptions] = useState([]);
   const [elementsOptions, setElementsOptions] = useState([]);
   const [materialsOptions, setMaterialsOptions] = useState([]);
 
-  const [refData, setRefData] = useState({}); // estrutura: { refId: { areas: [{id,label,elements:[...],materials:[...]}] } }
-
-  // =================== STEP 3 ======================
+  // Loading
   const [loadingSave, setLoadingSave] = useState(false);
+
+  // Modal para novo referencial
+  const [modalOpen, setModalOpen] = useState(false);
+  const [newRefName, setNewRefName] = useState("");
+  const [selectedAreasForModal, setSelectedAreasForModal] = useState([]);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState("");
 
   // ====================================================
   // FETCH INITIAL DATA
   // ====================================================
-  // This useEffect loads all necessary primary data correctly.
   useEffect(() => {
     async function loadAll() {
       try {
-        // This get is ok.
         const refs = await api.get("/referentials/name/");
         setReferentials(refs?.data?.data ?? []);
 
-        // this get is ok.
         const obs = await api.get("/observations/");
         setObservations(obs?.data?.data ?? []);
 
@@ -87,104 +71,27 @@ export default function NovaObra() {
           }))
         );
       } catch (err) {
-        console.log("Erro fetch:", err);
+        console.error("Erro ao buscar dados iniciais:", err);
       }
     }
     loadAll();
   }, []);
 
   // ====================================================
-  // TOGGLE SELEÇÃO DE REFERENCIAL
+  // HANDLE SELECTION
   // ====================================================
-  const handleCreateReferentialName = async () => {
-    if (!newRefName.trim()) return;
-
-    setModalLoading(true);
-    setModalError("");
-
-    try {
-      const responseNewReferentialName = await api.post("/referentials/name/", [
-        { name: newRefName.trim() },
-      ]);
-      console.log(
-        "Referencial criado com sucesso:",
-        responseNewReferentialName
-      );
-    } catch (err) {
-      console.error("Erro ao criar referencial:", err);
-      setModalError("Não foi possível criar o referencial.");
-    } finally {
-      setModalLoading(false);
-      setModalOpen(false);
-      setNewRefName("");
-      const listRes = await api.get("/referentials/name/");
-      const list = listRes?.data?.data ?? listRes?.data ?? [];
-      setReferentials(list);
-    }
-
-    //   // 1️⃣ Criar o referencial
-    //   const rnRes = await api.post("/referentials/", [
-    //     { name: newRefName.trim() }, // ✅ array com 1 objeto
-    //   ]);
-
-    //   const rnPayload = rnRes?.data?.data ?? rnRes?.data ?? rnRes;
-    //   let refNameId =
-    //     rnPayload?.id ??
-    //     rnPayload?.pk ??
-    //     (Array.isArray(rnPayload) ? rnPayload[0]?.id : null);
-
-    //   if (!refNameId)
-    //     throw new Error("Não foi possível obter referential_name_id.");
-
-    //   // 2️⃣ Associar áreas ao referencial — aqui **não precisa `name`**
-    //   const payload = {
-    //     referential_name_id: refNameId,
-    //     areas_ids: Array.isArray(selectedAreasForModal)
-    //       ? selectedAreasForModal
-    //       : [],
-    //     comment: "",
-    //   };
-
-    //   // ⚠️ Enviar objeto direto, não array
-    //   await api.post("/referentials/name/", payload);
-
-    //   console.log("Referencial criado com sucesso!");
-
-    //   // 3️⃣ Atualizar lista de referenciais
-    //   const listRes = await api.get("/referentials/name/");
-    //   const list = listRes?.data?.data ?? listRes?.data ?? [];
-    //   setReferentials(list);
-
-    //   // 4️⃣ Fechar modal e resetar campos
-    //   setModalOpen(false);
-    //   setNewRefName("");
-    //   setSelectedAreasForModal([]);
-    // } catch (err) {
-    //   console.error("Erro ao criar referencial:", err);
-    //   setModalError("Não foi possível criar o referencial.");
-    // } finally {
-    //   setModalLoading(false);
-    // }
-  };
-
-  // Review the meaning od this function, it seems incorrect.
-  // function toggleReferential(id) {
-  //   let updated;
-  //   if (selectedReferentials.includes(id)) {
-  //     updated = selectedReferentials.filter((x) => x !== id);
-  //   } else {
-  //     updated = [...selectedReferentials, id];
-  //   }
-
-  //   setSelectedReferentials(updated);
-
-  //   const newRefData = {};
-  //   updated.forEach((refId) => {
-  //     newRefData[refId] = refData[refId] || { areas: [] };
-  //   });
-  //   setRefData(newRefData);
-  //   console.log("selectedReferentials:", selectedReferentials);
-  // }
+  function toggleReferential(id) {
+    setSelectedReferentials((prev) => {
+      const updated = prev.includes(id)
+        ? prev.filter((x) => x !== id)
+        : [...prev, id];
+      setRefData((prevData) => ({
+        ...prevData,
+        [id]: prevData[id] || { areas: [] },
+      }));
+      return updated;
+    });
+  }
 
   function toggleObservation(id) {
     setSelectedObservations((prev) =>
@@ -192,26 +99,6 @@ export default function NovaObra() {
     );
   }
 
-  function toggleReferential(id) {
-    setSelectedReferentials((prev) => {
-      const updated = prev.includes(id)
-        ? prev.filter((x) => x !== id)
-        : [...prev, id];
-
-      console.log("selectedReferentials:", updated); // Now shows correct value
-      return updated;
-    });
-
-    // Preserve existing refData - don't rebuild from scratch
-    setRefData((prev) => ({
-      ...prev,
-      [id]: prev[id] || { areas: [] }, // Only initialize if doesn't exist
-    }));
-  }
-
-  // ====================================================
-  // STEP 2 — ATUALIZAR ÁREAS, ELEMENTOS, MATERIAIS
-  // ====================================================
   function updateAreas(refId, selectedAreas) {
     setRefData((prev) => ({
       ...prev,
@@ -224,7 +111,6 @@ export default function NovaObra() {
               id: a.value,
               label: a.label,
               elements: [],
-              materials: [],
             }
           );
         }),
@@ -232,42 +118,6 @@ export default function NovaObra() {
     }));
   }
 
-  // ====================================================
-  // FINAL SUBMIT
-  // ====================================================
-  // Erro está nessa função, está enviando um referencial não selecionado, em elementos sempre envia peitoril sem estar selecionado além de excluir os selecionados.
-  async function handleSave() {
-    setLoadingSave(true);
-    try {
-      if (selectedReferentials.length === 0) {
-        alert("Nenhum referencial válido selecionado.");
-        setLoadingSave(false);
-        return;
-      }
-
-      // Antes precisa criar o Referencial partindo do id do Referencial name e suas áreas/elements/materials
-      await api.post("/constructions/", {
-        project_name: projectName,
-        location,
-        description,
-        observations: selectedObservations,
-        referentials: selectedReferentials, // <-- só IDs
-      });
-
-      alert("Obra criada com sucesso!");
-      setStep(1);
-      setProjectName("");
-      setLocation("");
-      setDescription("");
-      setSelectedReferentials([]);
-      setSelectedObservations([]);
-      setRefData({});
-    } catch (err) {
-      console.log(err.response?.data || err);
-      alert("Erro ao criar obra.");
-    }
-    setLoadingSave(false);
-  }
   function updateElements(refId, areaId, selectedElements) {
     setRefData((prev) => ({
       ...prev,
@@ -275,7 +125,6 @@ export default function NovaObra() {
         ...prev[refId],
         areas: prev[refId].areas.map((a) => {
           if (a.id !== areaId) return a;
-          // adiciona elementos novos com materiais vazios
           const updatedElements = selectedElements.map((e) => {
             const existing = a.elements.find((el) => el.id === e.value);
             return existing || { id: e.value, label: e.label, materials: [] };
@@ -305,7 +154,116 @@ export default function NovaObra() {
   }
 
   // ====================================================
-  // COMPONENTES DE UI
+  // MODAL PARA NOVO REFERENCIAL
+  // ====================================================
+  const handleCreateReferentialName = async () => {
+    if (!newRefName.trim()) return;
+
+    setModalLoading(true);
+    setModalError("");
+
+    try {
+      const res = await api.post("/referentials/name/", [
+        { name: newRefName.trim() },
+      ]);
+      const newRef = res.data.data[0];
+      if (!newRef?.id) throw new Error("Não foi possível obter ID");
+
+      const refRes = await api.post("/referentials/", {
+        referential_name_id: newRef.id,
+        areas_ids: selectedAreasForModal,
+        comment: "",
+      });
+
+      setReferentials((prev) => [...prev, refRes.data.data[0]]);
+      setModalOpen(false);
+      setNewRefName("");
+      setSelectedAreasForModal([]);
+    } catch (err) {
+      console.error(err);
+      setModalError("Não foi possível criar o referencial");
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  // ====================================================
+  // FINAL SUBMIT
+  // ====================================================
+  async function handleSave() {
+    setLoadingSave(true);
+    try {
+      if (!projectName || !location || !description) {
+        alert("Preencha todos os dados da obra");
+        return;
+      }
+
+      const referentialsCreated = [];
+
+      for (const refId of selectedReferentials) {
+        const ref = refData[refId];
+        if (!ref) continue;
+
+        const areasCreated = [];
+
+        for (const area of ref.areas) {
+          // Criar elementos
+          const elementsPayload = area.elements.map((el) => ({
+            element_type_id: el.id,
+            material_ids: el.materials.map((m) => m.value),
+          }));
+          const elementsRes = await api.post("/elements/", elementsPayload);
+          const elementsCreated = elementsRes.data.data.map((e) => e.id);
+
+          // Criar área
+          const areaRes = await api.post("/areas/", [
+            {
+              area_name_id: area.id,
+              elements_ids: elementsCreated,
+            },
+          ]);
+
+          areasCreated.push(areaRes.data.data[0].id);
+        }
+
+        const refRes = await api.post("/referentials/", [
+          {
+            referential_name_id: refId,
+            areas_ids: areasCreated,
+          },
+        ]);
+
+        referentialsCreated.push(refRes.data.data[0].id);
+      }
+
+      // Criar obra
+      await api.post("/constructions/", {
+        project_name: projectName,
+        location,
+        description,
+        observations: selectedObservations,
+        referentials: referentialsCreated,
+      });
+
+      alert("Obra criada com sucesso!");
+      // Reset
+      setStep(1);
+      setProjectName("");
+      setLocation("");
+      setDescription("");
+      setSelectedReferentials([]);
+      setSelectedObservations([]);
+      setRefData({});
+    } catch (err) {
+      console.error(err.response?.data || err);
+      alert("Erro ao criar obra");
+    } finally {
+      setLoadingSave(false);
+    }
+  }
+
+  // ====================================================
+  // NAVIGATION STEPS
   // ====================================================
   const StepIndicator = () => (
     <div className="flex justify-center gap-3 my-4">
@@ -347,9 +305,11 @@ export default function NovaObra() {
     if (step > 1) setStep(step - 1);
   };
 
+  // ====================================================
+  // UI
+  // ====================================================
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* HEADER */}
       <header className="flex items-center gap-4 bg-red-700 text-white px-4 py-3 shadow-md">
         <button
           onClick={() => navigate("/home")}
@@ -409,7 +369,9 @@ export default function NovaObra() {
                       : "border-gray-200"
                   }`}
                 >
-                  <p className="font-medium">{r.name}</p>
+                  <p className="font-medium">
+                    {r.name || r.referential_name?.name}
+                  </p>
                 </div>
               ))}
             </div>
@@ -457,7 +419,9 @@ export default function NovaObra() {
                   key={refId}
                   className="border rounded-xl p-5 shadow-md bg-white flex flex-col gap-4"
                 >
-                  <h3 className="font-semibold text-lg">{ref?.name}</h3>
+                  <h3 className="font-semibold text-lg">
+                    {ref?.name || ref.referential_name?.name}
+                  </h3>
 
                   <p className="font-medium mb-1">Áreas</p>
                   <Select
@@ -547,14 +511,17 @@ export default function NovaObra() {
             <p>
               <b>Descrição:</b> {description}
             </p>
-
             <p>
               <b>Referenciais:</b>{" "}
               {selectedReferentials
-                .map((id) => referentials.find((r) => r.id === id)?.name)
+                .map(
+                  (id) =>
+                    referentials.find((r) => r.id === id)?.name ||
+                    referentials.find((r) => r.id === id)?.referential_name
+                      ?.name
+                )
                 .join(", ")}
             </p>
-
             <p>
               <b>Observações:</b>{" "}
               {selectedObservations
@@ -581,6 +548,7 @@ export default function NovaObra() {
           </div>
         )}
       </div>
+
       {modalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded-xl shadow-lg w-96 flex flex-col gap-4">
@@ -593,7 +561,6 @@ export default function NovaObra() {
               onChange={(e) => setNewRefName(e.target.value)}
             />
 
-            {/* Select de áreas */}
             <Select
               isMulti
               options={areasOptions}
@@ -604,22 +571,22 @@ export default function NovaObra() {
               onChange={(vals) =>
                 setSelectedAreasForModal(vals.map((v) => v.value))
               }
-              placeholder="Selecione áreas (opcional)"
+              placeholder="Selecione áreas"
             />
 
-            {modalError && <p className="text-red-500">{modalError}</p>}
+            {modalError && <p className="text-red-600">{modalError}</p>}
 
-            <div className="flex justify-end gap-2 mt-2">
+            <div className="flex justify-end gap-2 mt-4">
               <button
                 onClick={() => setModalOpen(false)}
-                className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400"
+                className="px-4 py-2 rounded-md bg-gray-300 hover:bg-gray-400 transition"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleCreateReferentialName}
+                className="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700 transition"
                 disabled={modalLoading}
-                className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
               >
                 {modalLoading ? "Criando..." : "Criar"}
               </button>
