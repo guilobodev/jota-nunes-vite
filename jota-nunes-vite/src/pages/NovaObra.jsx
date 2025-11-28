@@ -1,8 +1,18 @@
-import { useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
-import api from "../services/axios";
 import Select from "react-select";
+import api from "../services/axios";
+import { ArrowLeft } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
+
+// Primeiro precisamos construir  Element = [{"element_type_id": num, "material_ids": [nums...]}], 
+
+/* 
+Estrutura de criação antes de obra:
+1- Element = [{"element_type_id": num, "material_ids": [nums...]}], 
+2- Area = [{"area_name_id": num, "elements_ids": [Element1.id, ...]}],
+3- Referential = [{"referential_name_id": num, "areas_ids": [Area1.id, ...]}],
+*/
 
 export default function NovaObra() {
   const navigate = useNavigate();
@@ -18,13 +28,17 @@ export default function NovaObra() {
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
 
+  // Nome mais correto seria referentialsNames
   const [referentials, setReferentials] = useState([]);
-  const [selectedReferentials, setSelectedReferentials] = useState([]);
 
   const [observations, setObservations] = useState([]);
+  const [selectedReferentials, setSelectedReferentials] = useState([]);
   const [selectedObservations, setSelectedObservations] = useState([]);
 
+  const [completeReferentialsData, setCompleteReferentialsData] = useState([]);
+
   // =================== STEP 2 ======================
+  // This shoud be areaName
   const [areasOptions, setAreasOptions] = useState([]);
   const [elementsOptions, setElementsOptions] = useState([]);
   const [materialsOptions, setMaterialsOptions] = useState([]);
@@ -37,12 +51,15 @@ export default function NovaObra() {
   // ====================================================
   // FETCH INITIAL DATA
   // ====================================================
+  // This useEffect loads all necessary primary data correctly.
   useEffect(() => {
     async function loadAll() {
       try {
+        // This get is ok.
         const refs = await api.get("/referentials/name/");
         setReferentials(refs?.data?.data ?? []);
 
+        // this get is ok.
         const obs = await api.get("/observations/");
         setObservations(obs?.data?.data ?? []);
 
@@ -79,78 +96,117 @@ export default function NovaObra() {
   // ====================================================
   // TOGGLE SELEÇÃO DE REFERENCIAL
   // ====================================================
-  const handleCreateReferential = async () => {
+  const handleCreateReferentialName = async () => {
     if (!newRefName.trim()) return;
 
     setModalLoading(true);
     setModalError("");
 
     try {
-      // 1️⃣ Criar o referencial
-      const rnRes = await api.post("/referentials/", [
-        { name: newRefName.trim() }, // ✅ array com 1 objeto
+      const responseNewReferentialName = await api.post("/referentials/name/", [
+        { name: newRefName.trim() },
       ]);
-      const rnPayload = rnRes?.data?.data ?? rnRes?.data ?? rnRes;
-      let refNameId =
-        rnPayload?.id ??
-        rnPayload?.pk ??
-        (Array.isArray(rnPayload) ? rnPayload[0]?.id : null);
-
-      if (!refNameId)
-        throw new Error("Não foi possível obter referential_name_id.");
-
-      // 2️⃣ Associar áreas ao referencial — aqui **não precisa `name`**
-      const payload = {
-        referential_name_id: refNameId,
-        areas_ids: Array.isArray(selectedAreasForModal)
-          ? selectedAreasForModal
-          : [],
-        comment: "",
-      };
-
-      // ⚠️ Enviar objeto direto, não array
-      await api.post("/referentials/name/", payload);
-
-      console.log("Referencial criado com sucesso!");
-
-      // 3️⃣ Atualizar lista de referenciais
-      const listRes = await api.get("/referentials/name/");
-      const list = listRes?.data?.data ?? listRes?.data ?? [];
-      setReferentials(list);
-
-      // 4️⃣ Fechar modal e resetar campos
-      setModalOpen(false);
-      setNewRefName("");
-      setSelectedAreasForModal([]);
+      console.log(
+        "Referencial criado com sucesso:",
+        responseNewReferentialName
+      );
     } catch (err) {
       console.error("Erro ao criar referencial:", err);
       setModalError("Não foi possível criar o referencial.");
     } finally {
       setModalLoading(false);
+      setModalOpen(false);
+      setNewRefName("");
+      const listRes = await api.get("/referentials/name/");
+      const list = listRes?.data?.data ?? listRes?.data ?? [];
+      setReferentials(list);
     }
+
+    //   // 1️⃣ Criar o referencial
+    //   const rnRes = await api.post("/referentials/", [
+    //     { name: newRefName.trim() }, // ✅ array com 1 objeto
+    //   ]);
+
+    //   const rnPayload = rnRes?.data?.data ?? rnRes?.data ?? rnRes;
+    //   let refNameId =
+    //     rnPayload?.id ??
+    //     rnPayload?.pk ??
+    //     (Array.isArray(rnPayload) ? rnPayload[0]?.id : null);
+
+    //   if (!refNameId)
+    //     throw new Error("Não foi possível obter referential_name_id.");
+
+    //   // 2️⃣ Associar áreas ao referencial — aqui **não precisa `name`**
+    //   const payload = {
+    //     referential_name_id: refNameId,
+    //     areas_ids: Array.isArray(selectedAreasForModal)
+    //       ? selectedAreasForModal
+    //       : [],
+    //     comment: "",
+    //   };
+
+    //   // ⚠️ Enviar objeto direto, não array
+    //   await api.post("/referentials/name/", payload);
+
+    //   console.log("Referencial criado com sucesso!");
+
+    //   // 3️⃣ Atualizar lista de referenciais
+    //   const listRes = await api.get("/referentials/name/");
+    //   const list = listRes?.data?.data ?? listRes?.data ?? [];
+    //   setReferentials(list);
+
+    //   // 4️⃣ Fechar modal e resetar campos
+    //   setModalOpen(false);
+    //   setNewRefName("");
+    //   setSelectedAreasForModal([]);
+    // } catch (err) {
+    //   console.error("Erro ao criar referencial:", err);
+    //   setModalError("Não foi possível criar o referencial.");
+    // } finally {
+    //   setModalLoading(false);
+    // }
   };
 
-  function toggleReferential(id) {
-    let updated;
-    if (selectedReferentials.includes(id)) {
-      updated = selectedReferentials.filter((x) => x !== id);
-    } else {
-      updated = [...selectedReferentials, id];
-    }
+  // Review the meaning od this function, it seems incorrect.
+  // function toggleReferential(id) {
+  //   let updated;
+  //   if (selectedReferentials.includes(id)) {
+  //     updated = selectedReferentials.filter((x) => x !== id);
+  //   } else {
+  //     updated = [...selectedReferentials, id];
+  //   }
 
-    setSelectedReferentials(updated);
+  //   setSelectedReferentials(updated);
 
-    const newRefData = {};
-    updated.forEach((refId) => {
-      newRefData[refId] = refData[refId] || { areas: [] };
-    });
-    setRefData(newRefData);
-  }
+  //   const newRefData = {};
+  //   updated.forEach((refId) => {
+  //     newRefData[refId] = refData[refId] || { areas: [] };
+  //   });
+  //   setRefData(newRefData);
+  //   console.log("selectedReferentials:", selectedReferentials);
+  // }
 
   function toggleObservation(id) {
     setSelectedObservations((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
+  }
+
+  function toggleReferential(id) {
+    setSelectedReferentials((prev) => {
+      const updated = prev.includes(id)
+        ? prev.filter((x) => x !== id)
+        : [...prev, id];
+
+      console.log("selectedReferentials:", updated); // Now shows correct value
+      return updated;
+    });
+
+    // Preserve existing refData - don't rebuild from scratch
+    setRefData((prev) => ({
+      ...prev,
+      [id]: prev[id] || { areas: [] }, // Only initialize if doesn't exist
+    }));
   }
 
   // ====================================================
@@ -179,25 +235,23 @@ export default function NovaObra() {
   // ====================================================
   // FINAL SUBMIT
   // ====================================================
+  // Erro está nessa função, está enviando um referencial não selecionado, em elementos sempre envia peitoril sem estar selecionado além de excluir os selecionados.
   async function handleSave() {
     setLoadingSave(true);
     try {
-      // Montar payload com estrutura hierárquica
-      const validReferentials = selectedReferentials.filter((id) =>
-        referentials.some((r) => r.id === id)
-      );
-      if (validReferentials.length === 0) {
+      if (selectedReferentials.length === 0) {
         alert("Nenhum referencial válido selecionado.");
         setLoadingSave(false);
         return;
       }
 
+      // Antes precisa criar o Referencial partindo do id do Referencial name e suas áreas/elements/materials
       await api.post("/constructions/", {
         project_name: projectName,
         location,
         description,
         observations: selectedObservations,
-        referentials: validReferentials, // <-- só IDs
+        referentials: selectedReferentials, // <-- só IDs
       });
 
       alert("Obra criada com sucesso!");
@@ -563,7 +617,7 @@ export default function NovaObra() {
                 Cancelar
               </button>
               <button
-                onClick={handleCreateReferential}
+                onClick={handleCreateReferentialName}
                 disabled={modalLoading}
                 className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
               >
