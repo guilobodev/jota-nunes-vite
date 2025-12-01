@@ -20,9 +20,11 @@ import {
 
 export default function Home() {
   const [open, setOpen] = useState(false);
+
   const [projetos, setProjetos] = useState([]);
   const [menuAberto, setMenuAberto] = useState(false);
   const [projetoSelecionado, setProjetoSelecionado] = useState(null);
+
   const [textoObs, setTextoObs] = useState("");
 
   const navigate = useNavigate();
@@ -56,6 +58,15 @@ export default function Home() {
     };
     fetchData();
   }, []);
+
+  async function loadConstruction(id) {
+    try {
+      const res = await api.get(`/constructions/${id}/`);
+      setObra(res.data); // Atualiza o objeto que vai para o modal
+    } catch (err) {
+      console.error("Erro ao carregar obra", err);
+    }
+  }
 
   // substitui o antigo handleAprovacao que salvava em localStorage
   const handleAprovacao = async (id, status) => {
@@ -383,6 +394,7 @@ function SecaoProjetos({ titulo, cor, lista, handleDelete }) {
   const [carregandoModelo, setCarregandoModelo] = useState(false);
   const [mensagemConfirmacao, setMensagemConfirmacao] = useState("");
   const navigate = useNavigate();
+
   const [modalEditarOpen, setModalEditarOpen] = useState(false);
   const [obraEditando, setObraEditando] = useState(null);
 
@@ -469,7 +481,6 @@ function SecaoProjetos({ titulo, cor, lista, handleDelete }) {
     }
   };
 
-  // novo: excluir obra (usa handleDelete passado como prop)
   const excluirObra = async (projeto) => {
     fecharMenus();
     if (typeof handleDelete === "function") {
@@ -503,7 +514,6 @@ function SecaoProjetos({ titulo, cor, lista, handleDelete }) {
                 {projeto.project_name}
               </h3>
 
-              {/* mostrar menu para aprovadas E reprovadas */}
               {(cor === "green" || cor === "red") && (
                 <button
                   onClick={(e) => {
@@ -517,7 +527,6 @@ function SecaoProjetos({ titulo, cor, lista, handleDelete }) {
               )}
             </div>
 
-            {/* menu: opções diferentes dependendo do tipo (aprovada / reprovada) */}
             {(cor === "green" || cor === "red") &&
               menuAberto === projeto.id && (
                 <div className="menu-3p-card absolute right-4 top-12 w-44 bg-white shadow-xl rounded-xl border z-50">
@@ -541,7 +550,6 @@ function SecaoProjetos({ titulo, cor, lista, handleDelete }) {
                     </>
                   )}
 
-                  {/* botão Excluir obra — visível para aprovadas e reprovadas (usuário com permissão) */}
                   <button
                     className="w-full text-left px-4 py-3 hover:bg-red-100 transition text-red-600"
                     onClick={() => excluirObra(projeto)}
@@ -621,12 +629,14 @@ function SecaoProjetos({ titulo, cor, lista, handleDelete }) {
           </div>
         </div>
       )}
-      <EditarObraModal
-        isOpen={modalEditarOpen}
-        onClose={() => setModalEditarOpen(false)}
-        projeto={obraEditando}
-        onUpdated={atualizarObraNaLista}
-      />
+      {modalEditarOpen && (
+        <EditarObraModal
+          isOpen={modalEditarOpen}
+          onClose={() => setModalEditarOpen(false)}
+          projeto={obraEditando}
+          onUpdated={atualizarObraNaLista}
+        />
+      )}
     </>
   );
 }
