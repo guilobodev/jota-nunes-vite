@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import GenericModal from "../components/GenericModal";
+import ModalMaterial from "../components/modalMaterial";
 
 export default function NovaObra() {
   const navigate = useNavigate();
@@ -77,42 +78,43 @@ export default function NovaObra() {
   // ====================================================
   // FETCH INITIAL DATA
   // ====================================================
-  useEffect(() => {
-    async function loadAll() {
-      try {
-        const refs = await api.get("/referentials/name/");
-        setReferentials(refs?.data?.data ?? []);
+  async function loadAll() {
+    try {
+      const refs = await api.get("/referentials/name/");
+      setReferentials(refs?.data?.data ?? []);
 
-        const obs = await api.get("/observations/");
-        setObservations(obs?.data?.data ?? []);
+      const obs = await api.get("/observations/");
+      setObservations(obs?.data?.data ?? []);
 
-        const areas = await api.get("/areas/names/");
-        setAreasOptions(
-          (areas?.data?.data ?? []).map((a) => ({
-            value: a.id,
-            label: a.area_name?.name || a.name,
-          }))
-        );
+      const areas = await api.get("/areas/names/");
+      setAreasOptions(
+        (areas?.data?.data ?? []).map((a) => ({
+          value: a.id,
+          label: a.area_name?.name || a.name,
+        }))
+      );
 
-        const elems = await api.get("/elements/types/");
-        setElementsOptions(
-          (elems?.data?.data ?? []).map((e) => ({
-            value: e.id,
-            label: e.element_type?.name || e.name,
-          }))
-        );
+      const elems = await api.get("/elements/types/");
+      setElementsOptions(
+        (elems?.data?.data ?? []).map((e) => ({
+          value: e.id,
+          label: e.element_type?.name || e.name,
+        }))
+      );
 
-        const mats = await api.get("/materials/");
-        setMaterialsOptions(
-          (mats?.data?.data ?? []).map((m) => ({
-            value: m.id,
-            label: m.description,
-          }))
-        );
-      } catch (err) {
-        console.error("Erro ao buscar dados iniciais:", err);
-      }
+      const mats = await api.get("/materials/");
+      setMaterialsOptions(
+        (mats?.data?.data ?? []).map((m) => ({
+          value: m.id,
+          label: m.description,
+        }))
+      );
+    } catch (err) {
+      console.error("Erro ao buscar dados iniciais:", err);
     }
+  }
+
+  useEffect(() => {
     loadAll();
   }, []);
 
@@ -766,7 +768,6 @@ export default function NovaObra() {
               </p>
             </div>
 
-            {/* Observações */}
             <div>
               <p className="font-bold mb-1">Observações:</p>
               <p>
@@ -850,6 +851,7 @@ export default function NovaObra() {
           </div>
         )}
       </div>
+
       <GenericModal
         isOpen={modalOpen}
         title="Novo Referencial"
@@ -887,23 +889,13 @@ export default function NovaObra() {
         onClose={() => setModalElementOpen(false)}
         showAreasSelect={false}
       />
-      <GenericModal
-        isOpen={modalMaterialOpen}
-        title="Novo Material"
-        inputValue={newMaterialDescription}
-        onInputChange={setNewMaterialDescription}
-        onConfirm={handleCreateMaterials}
-        isLoading={modalLoading}
-        error={modalError}
+      <ModalMaterial
+        open={modalMaterialOpen}
         onClose={() => setModalMaterialOpen(false)}
-        showMaterialBrandSelect={true}
-        showMaterialTypeSelect={true}
-        materialBrandOptions={materialsBrandsOptions}
-        materialTypeOptions={materialsTypesOptions}
-        selectedBrand={selectedBrandForMaterial}
-        selectedType={selectedTypeForMaterial}
-        onBrandChange={setSelectedBrandForMaterial}
-        onTypeChange={setSelectedTypeForMaterial}
+        onCreated={(newMat) => {
+          // Aqui você atualiza o materialsOptions se quiser
+          loadAll();
+        }}
       />
     </div>
   );
