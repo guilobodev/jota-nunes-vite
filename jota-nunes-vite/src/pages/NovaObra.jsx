@@ -2,7 +2,7 @@ import Select from "react-select";
 import api from "../services/axios";
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import GenericModal from "../components/GenericModal";
 import ModalMaterial from "../components/modalMaterial";
 
@@ -12,22 +12,15 @@ export default function NovaObra() {
 
   // STEP 1
   const [projectName, setProjectName] = useState("");
-  const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
+  const [projectLocation, setProjectLocation] = useState("");
 
   const [referentials, setReferentials] = useState([]);
   const [observations, setObservations] = useState([]);
   const [selectedReferentials, setSelectedReferentials] = useState([]);
   const [selectedObservations, setSelectedObservations] = useState([]);
 
-  const [refData, setRefData] = useState({}); // { refId: { areas: [{id,label,elements:[{id,label,materials:[{value,label}]}]}] } }
-
-  //modal
-
-  // modal de elementos
-  // modal de materiais  ⬇⬇⬇
-
-  // selects de marca e tipo
+  const [refData, setRefData] = useState({});
   const [materialsBrandsOptions, setMaterialsBrandsOptions] = useState([]);
   const [materialsTypesOptions, setMaterialsTypesOptions] = useState([]);
   const [modalLoading, setModalLoading] = useState(false);
@@ -58,6 +51,8 @@ export default function NovaObra() {
 
   // Modal para novo referencial
   const [newRefName, setNewRefName] = useState("");
+  const [modalObservationOpen, setModalObservationOpen] = useState(false);
+  const [newObservation, setNewObservation] = useState("");
 
   const [selectedAreasForModal, setSelectedAreasForModal] = useState([]);
 
@@ -117,6 +112,123 @@ export default function NovaObra() {
   useEffect(() => {
     loadAll();
   }, []);
+
+  // Se vier um modelo padrão via navigation state, aplicar quando as opções estiverem carregadas
+  const location = useLocation();
+  const modeloPadrao = location.state?.modeloPadrao || null;
+
+  // template pending state: holds incoming model until user chooses how to apply it
+  const [pendingTemplate, setPendingTemplate] = useState(null);
+  useEffect(() => {
+    // store incoming template and wait for user confirmation to apply
+    if (modeloPadrao) setPendingTemplate(modeloPadrao);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modeloPadrao]);
+
+  function normalizeString(s) {
+    return s
+      .toString()
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .toLowerCase()
+      .trim();
+  }
+
+  function matchMaterialOptionByString(str) {
+    if (!str) return null;
+    const cleaned = normalizeString(str);
+    // try exact match on label
+    let found = materialsOptions.find(
+      (m) =>
+        normalizeString(m.label) === cleaned ||
+        normalizeString(m.description || "") === cleaned
+    );
+    if (found) return found;
+    // try includes
+    found = materialsOptions.find(
+      (m) =>
+        normalizeString(m.label).includes(cleaned) ||
+        normalizeString(m.description || "").includes(cleaned)
+    );
+    return found || null;
+  }
+
+  function applyTemplate(template, importElementsAndMaterials = false) {
+    try {
+      setProjectName(template.project_name || template.name || "");
+      setProjectLocation(template.location || template.local || "");
+      setDescription(template.description || template.summary || "");
+
+      // observations
+      const obsIds = (template.observations || [])
+        .map((o) => o.id)
+        .filter(Boolean);
+      setSelectedObservations(obsIds);
+
+      const newRefData = {};
+      const selectedRefs = [];
+
+      (template.referentials || []).forEach((ref) => {
+        const refId = Number(
+          ref.id || ref.referential_name?.id || ref.referential_name_id
+        );
+        selectedRefs.push(refId);
+
+        const areas = (ref.areas || []).map((area) => {
+          // Keep areas but decide whether to import elements/materials
+          const base = {
+            id: Number(area.id),
+            label: area.area_name?.name || area.name || "",
+            elements: [],
+          };
+
+          if (importElementsAndMaterials) {
+            base.elements = (area.elements || []).map((el) => {
+              const materialsMapped = (el.materials || [])
+                .map((m) => {
+                  if (typeof m === "string") {
+                    const matched = matchMaterialOptionByString(m);
+                    return matched
+                      ? { value: Number(matched.value), label: matched.label }
+                      : null;
+                  }
+                  const mid = m.id || m.value || null;
+                  if (mid) {
+                    const midNum = Number(mid);
+                    const matched = materialsOptions.find(
+                      (opt) =>
+                        Number(opt.value) === midNum ||
+                        Number(opt.id) === midNum
+                    );
+                    if (matched) return { value: midNum, label: matched.label };
+                    return m.description
+                      ? { value: midNum, label: m.description }
+                      : null;
+                  }
+                  return null;
+                })
+                .filter(Boolean);
+
+              return {
+                id: Number(el.element_type?.id || el.id),
+                label: el.element_type?.name || el.name || "",
+                materials: materialsMapped,
+              };
+            });
+          }
+
+          return base;
+        });
+
+        newRefData[refId] = { areas };
+      });
+
+      setSelectedReferentials(selectedRefs);
+      setRefData((prev) => ({ ...prev, ...newRefData }));
+    } catch (err) {
+      console.error("Erro ao aplicar modelo padrão:", err);
+    }
+  }
 
   // ====================================================
   // HANDLE SELECTION
@@ -460,7 +572,7 @@ export default function NovaObra() {
       // Criar obra
       await api.post("/constructions/", {
         project_name: projectName,
-        location,
+        location: projectLocation,
         description,
         observations: selectedObservations,
         referentials: referentialsCreated,
@@ -471,7 +583,7 @@ export default function NovaObra() {
       // Reset
       setStep(1);
       setProjectName("");
-      setLocation("");
+      setProjectLocation("");
       setDescription("");
       setSelectedReferentials([]);
       setSelectedObservations([]);
@@ -505,7 +617,7 @@ export default function NovaObra() {
     if (step === 1) {
       return (
         projectName.trim() !== "" &&
-        location.trim() !== "" &&
+        projectLocation.trim() !== "" &&
         description.trim() !== "" &&
         selectedReferentials.length > 0
       );
@@ -549,6 +661,48 @@ export default function NovaObra() {
         {/* STEP 1 */}
         {step === 1 && (
           <div className="bg-white p-6 rounded-2xl shadow-md flex flex-col gap-6">
+            {/* If we received a template, offer options to apply it */}
+            {pendingTemplate && (
+              <div className="p-4 border-l-4 border-yellow-400 bg-yellow-50 rounded mb-2">
+                <p className="font-medium">
+                  Modelo padrão detectado:{" "}
+                  <span className="font-semibold">
+                    {pendingTemplate.project_name || pendingTemplate.name}
+                  </span>
+                </p>
+                <p className="text-sm text-gray-700">
+                  Deseja aplicar o modelo? Você pode manter apenas os
+                  referenciais/observações ou também importar os elementos e
+                  materiais.
+                </p>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    onClick={() => {
+                      applyTemplate(pendingTemplate, false);
+                      setPendingTemplate(null);
+                    }}
+                    className="px-3 py-1 bg-blue-600 text-white rounded"
+                  >
+                    Aplicar (manter só referenciais/observações)
+                  </button>
+                  <button
+                    onClick={() => {
+                      applyTemplate(pendingTemplate, true);
+                      setPendingTemplate(null);
+                    }}
+                    className="px-3 py-1 bg-green-600 text-white rounded"
+                  >
+                    Aplicar incluindo elementos e materiais
+                  </button>
+                  <button
+                    onClick={() => setPendingTemplate(null)}
+                    className="px-3 py-1 bg-gray-200 text-gray-700 rounded"
+                  >
+                    Ignorar modelo
+                  </button>
+                </div>
+              </div>
+            )}
             <h2 className="font-bold text-xl">Dados Gerais</h2>
             <input
               type="text"
@@ -561,8 +715,8 @@ export default function NovaObra() {
               type="text"
               placeholder="Localização"
               className="p-3 border rounded-xl"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
+              value={projectLocation}
+              onChange={(e) => setProjectLocation(e.target.value)}
             />
             <textarea
               placeholder="Descrição"
@@ -600,6 +754,15 @@ export default function NovaObra() {
             </div>
 
             <h3 className="font-bold">Observações</h3>
+            <div className="flex items-center justify-between">
+              <p className="font-bold">Observações</p>
+              <button
+                onClick={() => setModalObservationOpen(true)}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+              >
+                + Nova Observação
+              </button>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               {observations.map((o) => (
                 <div
@@ -887,6 +1050,34 @@ export default function NovaObra() {
         isLoading={modalLoading}
         error={modalError}
         onClose={() => setModalElementOpen(false)}
+        showAreasSelect={false}
+      />
+      <GenericModal
+        isOpen={modalObservationOpen}
+        title="Nova Observação"
+        inputValue={newObservation}
+        onInputChange={setNewObservation}
+        onConfirm={async () => {
+          if (!newObservation.trim()) return;
+          try {
+            setModalLoading(true);
+            const res = await api.post("/observations/", [
+              { description: newObservation.trim() },
+            ]);
+            const created = res.data.data[0];
+            setObservations((prev) => [...prev, created]);
+            setNewObservation("");
+            setModalObservationOpen(false);
+          } catch (err) {
+            console.error("Erro ao criar observação:", err);
+            setModalError("Não foi possível criar a observação");
+          } finally {
+            setModalLoading(false);
+          }
+        }}
+        isLoading={modalLoading}
+        error={modalError}
+        onClose={() => setModalObservationOpen(false)}
         showAreasSelect={false}
       />
       <ModalMaterial
