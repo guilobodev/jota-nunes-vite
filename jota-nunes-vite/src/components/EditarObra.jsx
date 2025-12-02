@@ -200,7 +200,11 @@ export default function EditarObraModal({
         project_name: projetoData.project_name,
         location: projetoData.location,
         description: projetoData.description,
-        referentials: projetoData.referentials.map((ref) => ref.id),
+        // send referential_name.id (the lookup id) instead of the referential instance id
+        referentials: projetoData.referentials.map(
+          (ref) =>
+            ref?.referential_name?.id || ref?.referential_name_id || ref?.id
+        ),
         observations: projetoData.observations?.map((obs) => obs.id) || [],
       };
 

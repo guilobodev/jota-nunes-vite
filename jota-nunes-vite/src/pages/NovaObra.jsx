@@ -526,7 +526,7 @@ export default function NovaObra() {
   async function handleSave() {
     setLoadingSave(true);
     try {
-      if (!projectName || !location || !description) {
+      if (!projectName || !projectLocation || !description) {
         alert("Preencha todos os dados da obra");
         return;
       }
@@ -924,7 +924,7 @@ export default function NovaObra() {
                 <b>Nome:</b> {projectName}
               </p>
               <p>
-                <b>Localização:</b> {location}
+                <b>Localização:</b> {projectLocation}
               </p>
               <p>
                 <b>Descrição:</b> {description}
