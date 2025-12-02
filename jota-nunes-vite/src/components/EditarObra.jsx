@@ -499,28 +499,23 @@ export default function EditarObraModal({
                             </h6>
 
                             {/* Summary list like NovaObra Step 3: show labels when available */}
-                            {el.materials && el.materials.length > 0 ? (
-                              <ul className="ml-4 list-disc text-sm mt-1">
-                                {el.materials.map((mat, idx) => (
-                                  <li key={idx}>
-                                    {typeof mat === "string"
-                                      ? // backend sometimes returns strings (StringRelatedField)
-                                        mat
-                                      : // prefer explicit label if present (from Select option),
-                                        // otherwise try description/brand combination
-                                        mat.label ||
-                                        mat.description ||
-                                        `${mat.brand?.name || ""} ${
-                                          mat.material_type?.name || ""
-                                        }`}
-                                  </li>
+                            {el.materials?.map((mat, idx) => (
+                              <select
+                                key={idx}
+                                value={mat.id || ""}
+                                onChange={(e) =>
+                                  handleChangeMaterial(i, j, k, idx, e.target.value)
+                                }
+                                className="w-full border rounded px-2 py-1 mb-2 text-sm focus:ring-2 focus:ring-red-600 outline-none"
+                              >
+                                <option value="">-- Selecione um material --</option>
+                                {materialsOptions.map((m) => (
+                                  <option key={m.id} value={m.id}>
+                                    {m.description} - {m.brand?.name} ({m.material_type?.name})
+                                  </option>
                                 ))}
-                              </ul>
-                            ) : (
-                              <p className="ml-4 text-sm text-gray-500">
-                                Nenhum material selecionado
-                              </p>
-                            )}
+                              </select>
+                            ))}
 
                             {/* Apenas exibir a lista de materiais (não editável) */}
                           </div>
