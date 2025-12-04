@@ -7,8 +7,6 @@ import EditarObraModal from "../components/EditarObra";
 import NovoDocumentoModal from "../components/NovoDocumentoModal";
 import {
   FilePlus,
-  User,
-  Settings,
   Menu,
   CheckCircle,
   XCircle,
@@ -176,27 +174,25 @@ export default function Home() {
       </header>
 
       {menuAberto && (
-  <div className="md:hidden bg-red-600 text-white flex justify-between items-center px-4 py-3">
-
-    <button className="hover:bg-red-500 p-2 rounded-lg transition">
-      <User />
-    </button>
+  <div className="md:hidden bg-red-700 text-white px-4 py-3 flex items-center gap-4 border-b-4 border-red-800">
 
     <button
       onClick={() => setOpen(true)}
-      className="bg-white text-red-700 px-4 py-2 rounded-lg font-semibold shadow-md flex items-center gap-2"
+      className="bg-white text-red-700 flex-1 py-2 rounded-lg font-semibold shadow flex items-center justify-center gap-2"
     >
       <FilePlus className="w-5 h-5" />
       Novo Documento
     </button>
-
-    <button className="hover:bg-red-500 p-2 rounded-lg transition">
-      <Settings />
+    
+    <button
+      className="p-2 rounded-md hover:bg-red-600 transition ml-2"
+      onClick={handleLogout}
+    >
+      <LogOut className="w-6 h-6" />
     </button>
 
   </div>
 )}
-
 
       {/* Conteúdo */}
       <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">

@@ -644,376 +644,400 @@ export default function NovaObra() {
   // UI
   // ====================================================
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="flex items-center gap-4 bg-red-700 text-white px-4 py-3 shadow-md">
-        <button
-          onClick={() => navigate("/home")}
-          className="p-2 rounded-lg hover:bg-red-600 transition"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <h1 className="font-semibold text-lg">Criar Obra</h1>
-      </header>
+<div className="min-h-screen bg-gray-100">
+  <header className="flex items-center gap-4 bg-red-700 text-white px-4 py-3 shadow-md">
+    <button
+      onClick={() => navigate("/home")}
+      className="p-2 rounded-lg hover:bg-red-600 transition"
+    >
+      <ArrowLeft className="w-5 h-5" />
+    </button>
+    <h1 className="font-semibold text-lg">Criar Obra</h1>
+  </header>
 
-      <div className="p-4 max-w-5xl mx-auto">
-        <StepIndicator />
+  <div className="p-4 max-w-5xl mx-auto">
+    <StepIndicator />
 
-        {/* STEP 1 */}
-        {step === 1 && (
-          <div className="bg-white p-6 rounded-2xl shadow-md flex flex-col gap-6">
-            {/* If we received a template, offer options to apply it */}
-            {pendingTemplate && (
-              <div className="p-4 border-l-4 border-yellow-400 bg-yellow-50 rounded mb-2">
-                <p className="font-medium">
-                  Modelo padrão detectado:{" "}
-                  <span className="font-semibold">
-                    {pendingTemplate.project_name || pendingTemplate.name}
-                  </span>
-                </p>
-                <p className="text-sm text-gray-700">
-                  Deseja aplicar o modelo? Você pode manter apenas os
-                  referenciais/observações ou também importar os elementos e
-                  materiais.
-                </p>
-                <div className="mt-2 flex gap-2">
-                  <button
-                    onClick={() => {
-                      applyTemplate(pendingTemplate, false);
-                      setPendingTemplate(null);
-                    }}
-                    className="px-3 py-1 bg-blue-600 text-white rounded"
-                  >
-                    Aplicar (manter só referenciais/observações)
-                  </button>
-                  <button
-                    onClick={() => {
-                      applyTemplate(pendingTemplate, true);
-                      setPendingTemplate(null);
-                    }}
-                    className="px-3 py-1 bg-green-600 text-white rounded"
-                  >
-                    Aplicar incluindo elementos e materiais
-                  </button>
-                  <button
-                    onClick={() => setPendingTemplate(null)}
-                    className="px-3 py-1 bg-gray-200 text-gray-700 rounded"
-                  >
-                    Ignorar modelo
-                  </button>
-                </div>
-              </div>
-            )}
-            <h2 className="font-bold text-xl">Dados Gerais</h2>
-            <input
-              type="text"
-              placeholder="Nome da obra"
-              className="p-3 border rounded-xl"
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-            />
-            <input
-              type="text"
-              placeholder="Localização"
-              className="p-3 border rounded-xl"
-              value={projectLocation}
-              onChange={(e) => setProjectLocation(e.target.value)}
-            />
-            <textarea
-              placeholder="Descrição"
-              className="p-3 border rounded-xl min-h-32"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
+    {/* STEP 1 */}
+    {step === 1 && (
+      <div className="bg-white p-6 rounded-2xl shadow-md flex flex-col gap-6">
 
-            <h3 className="font-bold flex items-center justify-between">
-              Referenciais
+        {/* ALERTA */}
+        {pendingTemplate && (
+          <div className="p-4 border-l-4 border-yellow-400 bg-yellow-50 rounded mb-2">
+            <p className="font-medium">
+              Modelo padrão detectado:{" "}
+              <span className="font-semibold">
+                {pendingTemplate.project_name || pendingTemplate.name}
+              </span>
+            </p>
+            <p className="text-sm text-gray-700">
+              Deseja aplicar o modelo? Você pode manter apenas os
+              referenciais/observações ou também importar os elementos e
+              materiais.
+            </p>
+
+            {/* BOTÕES → RESPONSIVOS */}
+            <div className="mt-2 flex flex-col sm:flex-row gap-2">
               <button
-                onClick={() => setModalOpen(true)}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                onClick={() => {
+                  applyTemplate(pendingTemplate, false);
+                  setPendingTemplate(null);
+                }}
+                className="px-3 py-1 bg-blue-600 text-white rounded w-full sm:w-auto"
               >
-                + Novo Referencial
+                Aplicar (manter só referenciais/observações)
               </button>
-            </h3>
 
-            <div className="grid grid-cols-2 gap-4">
-              {referentials.map((r) => (
-                <div
-                  key={r.id}
-                  onClick={() => toggleReferential(r.id)}
-                  className={`p-4 rounded-xl border shadow cursor-pointer ${
-                    selectedReferentials.includes(r.id)
-                      ? "border-red-600 ring-2 ring-red-400"
-                      : "border-gray-200"
-                  }`}
-                >
-                  <p className="font-medium">
-                    {r.name || r.referential_name?.name}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            <h3 className="font-bold">Observações</h3>
-            <div className="flex items-center justify-between">
-              <p className="font-bold">Observações</p>
               <button
-                onClick={() => setModalObservationOpen(true)}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                onClick={() => {
+                  applyTemplate(pendingTemplate, true);
+                  setPendingTemplate(null);
+                }}
+                className="px-3 py-1 bg-green-600 text-white rounded w-full sm:w-auto"
               >
-                + Nova Observação
+                Aplicar incluindo elementos e materiais
+              </button>
+
+              <button
+                onClick={() => setPendingTemplate(null)}
+                className="px-3 py-1 bg-gray-200 text-gray-700 rounded w-full sm:w-auto"
+              >
+                Ignorar modelo
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              {observations.map((o) => (
-                <div
-                  key={o.id}
-                  onClick={() => toggleObservation(o.id)}
-                  className={`p-4 rounded-xl border shadow cursor-pointer ${
-                    selectedObservations.includes(o.id)
-                      ? "border-red-600 ring-2 ring-red-400"
-                      : "border-gray-200"
-                  }`}
-                >
-                  <p>{o.description}</p>
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={handleNext}
-              disabled={!canGoNext()}
-              className={`px-6 py-2 rounded-md text-white transition ${
-                canGoNext()
-                  ? "bg-blue-600 hover:bg-blue-700"
-                  : "bg-gray-400 cursor-not-allowed"
-              }`}
-            >
-              Próximo
-            </button>
           </div>
         )}
 
-        {/* STEP 2 */}
-        {step === 2 && (
-          <div className="bg-white p-6 rounded-2xl shadow-md flex flex-col gap-8">
-            <h2 className="font-bold text-xl">Áreas / Elementos / Materiais</h2>
+        <h2 className="font-bold text-xl">Dados Gerais</h2>
 
-            {selectedReferentials.map((refId) => {
-              const ref = referentials.find((r) => r.id === refId);
-              return (
-                <div
-                  key={refId}
-                  className="border rounded-xl p-5 shadow-md bg-white flex flex-col gap-4"
+        {/* INPUTS RESPONSIVOS */}
+        <input
+          type="text"
+          placeholder="Nome da obra"
+          className="p-3 border rounded-xl w-full"
+          value={projectName}
+          onChange={(e) => setProjectName(e.target.value)}
+        />
+
+        <input
+          type="text"
+          placeholder="Localização"
+          className="p-3 border rounded-xl w-full"
+          value={projectLocation}
+          onChange={(e) => setProjectLocation(e.target.value)}
+        />
+
+        <textarea
+          placeholder="Descrição"
+          className="p-3 border rounded-xl min-h-32 w-full"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+
+        {/* TÍTULO + BOTÃO → RESPONSIVOS */}
+        <h3 className="font-bold flex items-center justify-between flex-wrap gap-2">
+          Referenciais
+          <button
+            onClick={() => setModalOpen(true)}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition w-full sm:w-auto"
+          >
+            + Novo Referencial
+          </button>
+        </h3>
+
+        {/* GRID RESPONSIVO */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {referentials.map((r) => (
+            <div
+              key={r.id}
+              onClick={() => toggleReferential(r.id)}
+              className={`p-4 rounded-xl border shadow cursor-pointer ${
+                selectedReferentials.includes(r.id)
+                  ? "border-red-600 ring-2 ring-red-400"
+                  : "border-gray-200"
+              }`}
+            >
+              <p className="font-medium">
+                {r.name || r.referential_name?.name}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* OBSERVAÇÕES */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-bold">Observações</p>
+          <button
+            onClick={() => setModalObservationOpen(true)}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition w-full sm:w-auto"
+          >
+            + Nova Observação
+          </button>
+        </div>
+
+        {/* GRID RESPONSIVO */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {observations.map((o) => (
+            <div
+              key={o.id}
+              onClick={() => toggleObservation(o.id)}
+              className={`p-4 rounded-xl border shadow cursor-pointer ${
+                selectedObservations.includes(o.id)
+                  ? "border-red-600 ring-2 ring-red-400"
+                  : "border-gray-200"
+              }`}
+            >
+              <p>{o.description}</p>
+            </div>
+          ))}
+        </div>
+
+        <button
+          onClick={handleNext}
+          disabled={!canGoNext()}
+          className={`px-6 py-2 rounded-md text-white transition w-full sm:w-auto ${
+            canGoNext()
+              ? "bg-blue-600 hover:bg-blue-700"
+              : "bg-gray-400 cursor-not-allowed"
+          }`}
+        >
+          Próximo
+        </button>
+      </div>
+    )}
+
+    {/* STEP 2 */}
+    {step === 2 && (
+      <div className="bg-white p-6 rounded-2xl shadow-md flex flex-col gap-8">
+        <h2 className="font-bold text-xl">Áreas / Elementos / Materiais</h2>
+
+        {selectedReferentials.map((refId) => {
+          const ref = referentials.find((r) => r.id === refId);
+
+          return (
+            <div
+              key={refId}
+              className="border rounded-xl p-5 shadow-md bg-white flex flex-col gap-4 w-full"
+            >
+              <h3 className="font-semibold text-lg">
+                {ref?.name || ref.referential_name?.name}
+              </h3>
+
+              {/* ÁREAS HEADER RESPONSIVO */}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-medium mb-1">Áreas</p>
+
+                <button
+                  onClick={() => setModalAreaOpen(true)}
+                  className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition w-full sm:w-auto"
                 >
-                  <h3 className="font-semibold text-lg">
-                    {ref?.name || ref.referential_name?.name}
-                  </h3>
+                  + Nova Área
+                </button>
+              </div>
 
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium mb-1">Áreas</p>
+              <Select
+                isMulti
+                options={areasOptions}
+                value={
+                  refData[refId]?.areas.map((a) => ({
+                    value: a.id,
+                    label: a.label,
+                  })) || []
+                }
+                onChange={(vals) => updateAreas(refId, vals)}
+              />
+
+              {refData[refId]?.areas?.map((area) => (
+                <div key={area.id} className="ml-0 sm:ml-4 mt-2">
+                  <p className="font-medium">{area.label}</p>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-3">
+                    <div className="flex-1 w-full">
+                      <Select
+                        isMulti
+                        options={elementsOptions}
+                        value={area.elements.map((el) => ({
+                          value: el.id,
+                          label: el.label,
+                        }))}
+                        onChange={(vals) =>
+                          updateElements(refId, area.id, vals)
+                        }
+                        placeholder="Selecione elementos"
+                      />
+                    </div>
 
                     <button
-                      onClick={() => setModalAreaOpen(true)}
-                      className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                      onClick={() => setModalElementOpen(true)}
+                      className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition w-full sm:w-auto"
                     >
-                      + Nova Área
+                      + Novo
                     </button>
                   </div>
-                  <Select
-                    isMulti
-                    options={areasOptions}
-                    value={
-                      refData[refId]?.areas.map((a) => ({
-                        value: a.id,
-                        label: a.label,
-                      })) || []
-                    }
-                    onChange={(vals) => updateAreas(refId, vals)}
-                  />
 
-                  {refData[refId]?.areas?.map((area) => (
-                    <div key={area.id} className="ml-4 mt-2">
-                      <p className="font-medium">{area.label}</p>
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1">
+                  {area.elements.map((el) => (
+                    <div
+                      key={el.id}
+                      className="ml-0 sm:ml-4 mt-2 flex flex-col gap-2"
+                    >
+                      <p className="text-sm font-medium">{el.label}</p>
+
+                      <div className="flex flex-col sm:flex-row items-center gap-3">
+                        <div className="flex-1 w-full">
                           <Select
                             isMulti
-                            options={elementsOptions}
-                            value={area.elements.map((el) => ({
-                              value: el.id,
-                              label: el.label,
-                            }))}
+                            options={materialsOptions}
+                            value={el.materials || []}
                             onChange={(vals) =>
-                              updateElements(refId, area.id, vals)
+                              updateMaterials(refId, area.id, el.id, vals)
                             }
-                            placeholder="Selecione elementos"
+                            placeholder="Selecione materiais"
                           />
                         </div>
 
                         <button
-                          onClick={() => setModalElementOpen(true)}
-                          className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                          onClick={() => setModalMaterialOpen(true)}
+                          className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition w-full sm:w-auto"
                         >
                           + Novo
                         </button>
                       </div>
-
-                      {area.elements.map((el) => (
-                        <div key={el.id} className="ml-4 mt-2">
-                          <p className="text-sm font-medium">{el.label}</p>
-                          <div className="flex items-center gap-3 mt-1">
-                            <div className="flex-1">
-                              <Select
-                                isMulti
-                                options={materialsOptions}
-                                value={el.materials || []}
-                                onChange={(vals) =>
-                                  updateMaterials(refId, area.id, el.id, vals)
-                                }
-                                placeholder="Selecione materiais"
-                              />
-                            </div>
-
-                            <button
-                              onClick={() => setModalMaterialOpen(true)}
-                              className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-                            >
-                              + Novo
-                            </button>
-                          </div>
-                        </div>
-                      ))}
                     </div>
                   ))}
                 </div>
-              );
-            })}
+              ))}
+            </div>
+          );
+        })}
 
-            <div className="flex justify-between">
-              {step > 1 && (
-                <button
-                  onClick={handlePrev}
-                  className="px-6 py-2 rounded-md bg-gray-300 hover:bg-gray-400 transition"
-                >
-                  Voltar
-                </button>
-              )}
-              <button
-                onClick={handleNext}
-                disabled={!canGoNext()}
-                className={`px-6 py-2 rounded-md text-white transition ${
-                  canGoNext()
-                    ? "bg-blue-600 hover:bg-blue-700"
-                    : "bg-gray-400 cursor-not-allowed"
-                }`}
+        {/* BOTÕES STEP 2 */}
+        <div className="flex flex-col sm:flex-row justify-between gap-3">
+          {step > 1 && (
+            <button
+              onClick={handlePrev}
+              className="px-6 py-2 rounded-md bg-gray-300 hover:bg-gray-400 transition w-full sm:w-auto"
+            >
+              Voltar
+            </button>
+          )}
+          <button
+            onClick={handleNext}
+            disabled={!canGoNext()}
+            className={`px-6 py-2 rounded-md text-white transition w-full sm:w-auto ${
+              canGoNext()
+                ? "bg-blue-600 hover:bg-blue-700"
+                : "bg-gray-400 cursor-not-allowed"
+            }`}
+          >
+            Próximo
+          </button>
+        </div>
+      </div>
+    )}
+
+    {/* STEP 3 */}
+    {step === 3 && (
+      <div className="bg-white p-6 rounded-2xl shadow-md flex flex-col gap-6">
+        <h2 className="font-bold text-xl">Revisão Completa</h2>
+
+        <div className="space-y-2">
+          <p>
+            <b>Nome:</b> {projectName}
+          </p>
+          <p>
+            <b>Localização:</b> {projectLocation}
+          </p>
+          <p>
+            <b>Descrição:</b> {description}
+          </p>
+        </div>
+
+        <div>
+          <p className="font-bold mb-1">Observações:</p>
+          <p>
+            {selectedObservations
+              .map(
+                (id) => observations.find((o) => o.id === id)?.description
+              )
+              .join(", ")}
+          </p>
+        </div>
+
+        {/* ESTRUTURA FINAL */}
+        <div className="space-y-4">
+          <h3 className="font-bold text-lg">Estrutura da Obra</h3>
+
+          {selectedReferentials.map((refId) => {
+            const ref = referentials.find((r) => r.id === refId);
+
+            return (
+              <div
+                key={refId}
+                className="border border-gray-300 rounded-xl p-4 bg-gray-50"
               >
-                Próximo
-              </button>
-            </div>
-          </div>
-        )}
+                <h4 className="font-semibold text-lg">
+                  Referencial:{" "}
+                  {ref?.name || ref?.referential_name?.name || "Sem nome"}
+                </h4>
 
-        {/* STEP 3 */}
-        {step === 3 && (
-          <div className="bg-white p-6 rounded-2xl shadow-md flex flex-col gap-6">
-            <h2 className="font-bold text-xl">Revisão Completa</h2>
-
-            {/* Dados gerais */}
-            <div className="space-y-2">
-              <p>
-                <b>Nome:</b> {projectName}
-              </p>
-              <p>
-                <b>Localização:</b> {projectLocation}
-              </p>
-              <p>
-                <b>Descrição:</b> {description}
-              </p>
-            </div>
-
-            <div>
-              <p className="font-bold mb-1">Observações:</p>
-              <p>
-                {selectedObservations
-                  .map(
-                    (id) => observations.find((o) => o.id === id)?.description
-                  )
-                  .join(", ")}
-              </p>
-            </div>
-
-            {/* Referenciais + Áreas + Elementos + Materiais */}
-            <div className="space-y-4">
-              <h3 className="font-bold text-lg">Estrutura da Obra</h3>
-
-              {selectedReferentials.map((refId) => {
-                const ref = referentials.find((r) => r.id === refId);
-
-                return (
+                {refData[refId]?.areas?.map((area) => (
                   <div
-                    key={refId}
-                    className="border border-gray-300 rounded-xl p-4 bg-gray-50"
+                    key={area.id}
+                    className="mt-3 ml-3 border-l pl-3"
                   >
-                    <h4 className="font-semibold text-lg">
-                      Referencial:{" "}
-                      {ref?.name || ref?.referential_name?.name || "Sem nome"}
-                    </h4>
+                    <p className="font-medium text-blue-700">
+                      Área: {area.label}
+                    </p>
 
-                    {/* Áreas */}
-                    {refData[refId]?.areas?.map((area) => (
-                      <div key={area.id} className="mt-3 ml-3 border-l pl-3">
-                        <p className="font-medium text-blue-700">
-                          Área: {area.label}
+                    {area.elements.map((el) => (
+                      <div
+                        key={el.id}
+                        className="ml-4 mt-2 border-l pl-3"
+                      >
+                        <p className="font-medium text-green-700">
+                          Elemento: {el.label}
                         </p>
 
-                        {/* Elementos */}
-                        {area.elements.map((el) => (
-                          <div key={el.id} className="ml-4 mt-2 border-l pl-3">
-                            <p className="font-medium text-green-700">
-                              Elemento: {el.label}
-                            </p>
-
-                            {/* Materiais */}
-                            {el.materials?.length > 0 ? (
-                              <ul className="ml-4 list-disc text-sm mt-1">
-                                {el.materials.map((mat, idx) => (
-                                  <li key={idx}>{mat.label}</li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <p className="ml-4 text-sm text-gray-500">
-                                Nenhum material selecionado
-                              </p>
-                            )}
-                          </div>
-                        ))}
+                        {el.materials?.length > 0 ? (
+                          <ul className="ml-4 list-disc text-sm mt-1">
+                            {el.materials.map((mat, idx) => (
+                              <li key={idx}>{mat.label}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="ml-4 text-sm text-gray-500">
+                            Nenhum material selecionado
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
 
-            {/* Botões */}
-            <button
-              onClick={handleSave}
-              disabled={loadingSave}
-              className="bg-red-600 text-white p-3 rounded-xl font-semibold"
-            >
-              {loadingSave ? "Salvando..." : "Criar Obra"}
-            </button>
+        <button
+          onClick={handleSave}
+          disabled={loadingSave}
+          className="bg-red-600 text-white p-3 rounded-xl font-semibold w-full sm:w-auto"
+        >
+          {loadingSave ? "Salvando..." : "Criar Obra"}
+        </button>
 
-            {step > 1 && (
-              <button
-                onClick={handlePrev}
-                className="px-6 py-2 rounded-md bg-gray-300 hover:bg-gray-400 transition"
-              >
-                Voltar
-              </button>
-            )}
-          </div>
+        {step > 1 && (
+          <button
+            onClick={handlePrev}
+            className="px-6 py-2 rounded-md bg-gray-300 hover:bg-gray-400 transition w-full sm:w-auto"
+          >
+            Voltar
+          </button>
         )}
       </div>
+    )}
+  </div>
 
       <GenericModal
         isOpen={modalOpen}
