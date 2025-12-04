@@ -276,14 +276,14 @@ export default function SelecionarAreas() {
 
       <main className="max-w-6xl mx-auto p-6 flex flex-col gap-6">
         <section className="bg-white p-6 rounded-2xl shadow-md flex flex-col gap-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <h2 className="font-bold text-xl">Áreas disponíveis</h2>
             <p className="text-sm text-gray-500">
               Escolha áreas para cada referential selecionado
             </p>
           </div>
 
-          <div className="flex gap-3 items-center">
+          <div className="flex gap-3 items-center justify-center gap-2">
             <input
               type="text"
               placeholder="Buscar área..."
